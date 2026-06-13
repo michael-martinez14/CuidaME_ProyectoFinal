@@ -1,0 +1,871 @@
+openapi: 3.0.3
+info:
+  title: CuidaME API
+  description: >
+    API REST para la plataforma CuidaME, dirigida a familias hondureñas que cuidan
+    a personas con enfermedades crónicas. Incluye gestión de pacientes, medicamentos,
+    alertas y un chatbot de apoyo.
+  version: 1.0.0
+  contact:
+    name: Equipo CuidaME
+
+tags:
+  - name: Autenticación
+    description: Registro e inicio de sesión de usuarios
+  - name: Pacientes
+    description: Gestión del perfil del paciente
+  - name: Círculo Familiar
+    description: Invitaciones y miembros del círculo de cuidado
+  - name: Medicamentos
+    description: Registro y seguimiento de medicamentos
+  - name: Alertas
+    description: Notificaciones activas del usuario
+  - name: Gamificación
+    description: Puntos, ranking y badges del cuidador
+  - name: Chatbot
+    description: Asistente virtual sobre medicamentos y enfermedades
+
+paths:
+  #AUTENTICACIÓN 
+  /auth/registro:
+    post:
+      tags: [Autenticación]
+      summary: Registrar un nuevo usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistroRequest'
+            example:
+              nombre: "María López"
+              correo: "maria@gmail.com"
+              contrasena: "Segura123!"
+              telefono: "+50498765432"
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        
+  /auth/login:
+    post:
+      tags: [Autenticación]
+      summary: Iniciar sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              correo: "maria@gmail.com"
+              contrasena: "Segura123!"
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Credenciales incorrectas
+        
+  #PACIENTES
+  /pacientes:
+    post:
+      tags: [Pacientes]
+      summary: Crear perfil del paciente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PacienteRequest'
+            example:
+              nombre: "Roberto López"
+              fecha_nacimiento: "1955-03-15"
+              sexo: "masculino"
+              telefono: "+50499887766"
+              direccion: "Tegucigalpa, Honduras"
+      responses:
+        '201':
+          description: Perfil del paciente creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paciente'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /pacientes/{paciente_id}:
+    get:
+      tags: [Pacientes]
+      summary: Obtener perfil del paciente
+      parameters:
+        - $ref: '#/components/parameters/PacienteId'
+      responses:
+        '200':
+          description: Perfil del paciente obtenido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paciente'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Pacientes]
+      summary: Actualizar datos del paciente
+      parameters:
+        - $ref: '#/components/parameters/PacienteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PacienteRequest'
+      responses:
+        '200':
+          description: Paciente actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paciente'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /pacientes/{paciente_id}/enfermedades:
+    post:
+      tags: [Pacientes]
+      summary: Agregar enfermedad al paciente
+      parameters:
+        - $ref: '#/components/parameters/PacienteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnfermedadRequest'
+            example:
+              nombre: "Diabetes tipo 2"
+              fecha_diagnostico: "2018-06-10"
+              medico_tratante: "Dr. Carlos Meza"
+              notas: "Control cada 3 meses"
+      responses:
+        '201':
+          description: Enfermedad agregada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enfermedad'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  #CÍRCULO FAMILIAR 
+  /circulos/{circulo_id}/invitar:
+    post:
+      tags: [Círculo Familiar]
+      summary: Invitar familiar por correo
+      parameters:
+        - $ref: '#/components/parameters/CirculoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [correo]
+              properties:
+                correo:
+                  type: string
+                  format: email
+                  example: "juan@gmail.com"
+                rol:
+                  type: string
+                  enum: [cuidador_principal, cuidador_secundario, observador]
+                  example: "cuidador_secundario"
+      responses:
+        '200':
+          description: Invitación enviada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MensajeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /circulos/aceptar-invitacion:
+    post:
+      tags: [Círculo Familiar]
+      summary: Aceptar invitación al círculo familiar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token_invitacion]
+              properties:
+                token_invitacion:
+                  type: string
+                  example: "abc123xyz"
+      responses:
+        '200':
+          description: Invitación aceptada, ahora eres parte del círculo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MensajeResponse'
+        '400':
+          description: Token inválido o expirado
+
+  /circulos/{circulo_id}/miembros:
+    get:
+      tags: [Círculo Familiar]
+      summary: Listar miembros del círculo familiar
+      parameters:
+        - $ref: '#/components/parameters/CirculoId'
+      responses:
+        '200':
+          description: Lista de miembros del círculo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MiembroCirculo'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
+  # MEDICAMENTOS
+  /medicamentos:
+    post:
+      tags: [Medicamentos]
+      summary: Registrar un nuevo medicamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicamentoRequest'
+            example:
+              paciente_id: 5
+              nombre: "Metformina"
+              dosis: "500mg"
+              frecuencia_horas: 8
+              hora_inicio: "08:00"
+              fecha_inicio: "2024-01-10"
+              fecha_fin: "2024-06-10"
+              instrucciones: "Tomar con comida"
+      responses:
+        '201':
+          description: Medicamento registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medicamento'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /medicamentos/paciente/{paciente_id}:
+    get:
+      tags: [Medicamentos]
+      summary: Listar medicamentos del paciente
+      parameters:
+        - $ref: '#/components/parameters/PacienteId'
+        - name: activos
+          in: query
+          required: false
+          schema:
+            type: boolean
+            example: true
+          description: Filtrar solo medicamentos activos
+      responses:
+        '200':
+          description: Lista de medicamentos del paciente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Medicamento'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /medicamentos/{medicamento_id}:
+    put:
+      tags: [Medicamentos]
+      summary: Editar medicamento
+      parameters:
+        - $ref: '#/components/parameters/MedicamentoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicamentoRequest'
+      responses:
+        '200':
+          description: Medicamento actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medicamento'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [Medicamentos]
+      summary: Eliminar medicamento
+      parameters:
+        - $ref: '#/components/parameters/MedicamentoId'
+      responses:
+        '200':
+          description: Medicamento eliminado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MensajeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ALERTAS 
+  /alertas:
+    get:
+      tags: [Alertas]
+      summary: Listar alertas activas del usuario
+      parameters:
+        - name: tipo
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [medicamento, cita, sintoma, stock, familiar]
+          description: Filtrar alertas por tipo
+      responses:
+        '200':
+          description: Lista de alertas activas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alerta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /alertas/{alerta_id}/leer:
+    patch:
+      tags: [Alertas]
+      summary: Marcar alerta como leída
+      parameters:
+        - name: alerta_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 8
+      responses:
+        '200':
+          description: Alerta marcada como leída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MensajeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # GAMIFICACIÓN
+  /gamificacion/puntos/{usuario_id}:
+    get:
+      tags: [Gamificación]
+      summary: Obtener puntos del usuario
+      parameters:
+        - name: usuario_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Puntos del usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  usuario_id:
+                    type: integer
+                    example: 1
+                  nombre:
+                    type: string
+                    example: "María López"
+                  puntos_totales:
+                    type: integer
+                    example: 340
+                  puntos_este_mes:
+                    type: integer
+                    example: 120
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /gamificacion/ranking/{circulo_id}:
+    get:
+      tags: [Gamificación]
+      summary: Listar ranking familiar
+      parameters:
+        - $ref: '#/components/parameters/CirculoId'
+      responses:
+        '200':
+          description: Ranking del círculo familiar
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RankingItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /gamificacion/badges/{usuario_id}:
+    get:
+      tags: [Gamificación]
+      summary: Obtener badges del usuario
+      parameters:
+        - name: usuario_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Lista de badges obtenidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Badge'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /gamificacion/accion:
+    post:
+      tags: [Gamificación]
+      summary: Registrar acción para sumar puntos
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [usuario_id, tipo_accion]
+              properties:
+                usuario_id:
+                  type: integer
+                  example: 1
+                tipo_accion:
+                  type: string
+                  enum: [confirmar_toma, registrar_sintoma, agendar_cita, invitar_familiar]
+                  example: "confirmar_toma"
+                referencia_id:
+                  type: integer
+                  description: ID del objeto relacionado (medicamento, cita, etc.)
+                  example: 12
+      responses:
+        '200':
+          description: Acción registrada y puntos sumados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: "Acción registrada correctamente"
+                  puntos_sumados:
+                    type: integer
+                    example: 10
+                  puntos_totales:
+                    type: integer
+                    example: 350
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  #CHATBOT
+  /chatbot/mensaje:
+    post:
+      tags: [Chatbot]
+      summary: Enviar consulta al chatbot y recibir respuesta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [consulta]
+              properties:
+                consulta:
+                  type: string
+                  example: "¿Cuáles son los efectos secundarios de la Metformina?"
+      responses:
+        '200':
+          description: Respuesta del chatbot
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  respuesta:
+                    type: string
+                    example: "Los efectos secundarios más comunes de la Metformina incluyen náuseas y malestar estomacal."
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          
+components:
+
+  parameters:
+    PacienteId:
+      name: paciente_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        example: 5
+
+    CirculoId:
+      name: circulo_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        example: 3
+
+    MedicamentoId:
+      name: medicamento_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        example: 12
+
+  # RESPUESTAS REUTILIZABLES
+  responses:
+    BadRequest:
+      description: Datos inválidos o incompletos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Token inválido o no proporcionado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  #SCHEMAS 
+  schemas:
+    # Auth
+    RegistroRequest:
+      type: object
+      required: [nombre, correo, contrasena]
+      properties:
+        nombre:
+          type: string
+          example: "María López"
+        correo:
+          type: string
+          format: email
+          example: "maria@gmail.com"
+        contrasena:
+          type: string
+          minLength: 8
+          example: "Segura123!"
+        telefono:
+          type: string
+          example: "+50498765432"
+
+    LoginRequest:
+      type: object
+      required: [correo, contrasena]
+      properties:
+        correo:
+          type: string
+          format: email
+          example: "maria@gmail.com"
+        contrasena:
+          type: string
+          example: "Segura123!"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        usuario:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            nombre:
+              type: string
+              example: "María López"
+            correo:
+              type: string
+              example: "maria@gmail.com"
+
+    # Paciente
+    PacienteRequest:
+      type: object
+      required: [nombre, fecha_nacimiento, sexo]
+      properties:
+        nombre:
+          type: string
+          example: "Roberto López"
+        fecha_nacimiento:
+          type: string
+          format: date
+          example: "1955-03-15"
+        sexo:
+          type: string
+          enum: [masculino, femenino, otro]
+          example: "masculino"
+        telefono:
+          type: string
+          example: "+50499887766"
+        direccion:
+          type: string
+          example: "Tegucigalpa, Honduras"
+
+    Paciente:
+      allOf:
+        - $ref: '#/components/schemas/PacienteRequest'
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 5
+            enfermedades:
+              type: array
+              items:
+                $ref: '#/components/schemas/Enfermedad'
+            creado_en:
+              type: string
+              format: date-time
+              example: "2024-01-01T10:00:00Z"
+
+    EnfermedadRequest:
+      type: object
+      required: [nombre]
+      properties:
+        nombre:
+          type: string
+          example: "Diabetes tipo 2"
+        fecha_diagnostico:
+          type: string
+          format: date
+          example: "2018-06-10"
+        medico_tratante:
+          type: string
+          example: "Dr. Carlos Meza"
+        notas:
+          type: string
+          example: "Control cada 3 meses"
+
+    Enfermedad:
+      allOf:
+        - $ref: '#/components/schemas/EnfermedadRequest'
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 2
+
+    # Círculo
+    MiembroCirculo:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+          example: 3
+        nombre:
+          type: string
+          example: "Juan López"
+        correo:
+          type: string
+          example: "juan@gmail.com"
+        rol:
+          type: string
+          enum: [cuidador_principal, cuidador_secundario, observador]
+          example: "cuidador_secundario"
+        estado:
+          type: string
+          enum: [activo, inactivo, pendiente]
+          example: "activo"
+        puntos:
+          type: integer
+          example: 180
+
+    # Medicamento
+    MedicamentoRequest:
+      type: object
+      required: [paciente_id, nombre, dosis, frecuencia_horas, hora_inicio]
+      properties:
+        paciente_id:
+          type: integer
+          example: 5
+        nombre:
+          type: string
+          example: "Metformina"
+        dosis:
+          type: string
+          example: "500mg"
+        frecuencia_horas:
+          type: integer
+          example: 8
+        hora_inicio:
+          type: string
+          format: time
+          example: "08:00"
+        fecha_inicio:
+          type: string
+          format: date
+          example: "2024-01-10"
+        fecha_fin:
+          type: string
+          format: date
+          example: "2024-06-10"
+        instrucciones:
+          type: string
+          example: "Tomar con comida"
+
+    Medicamento:
+      allOf:
+        - $ref: '#/components/schemas/MedicamentoRequest'
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 12
+            activo:
+              type: boolean
+              example: true
+            creado_en:
+              type: string
+              format: date-time
+              example: "2024-01-10T08:00:00Z"
+
+    # Alerta
+    Alerta:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 8
+        tipo:
+          type: string
+          enum: [medicamento, cita, sintoma, stock, familiar]
+          example: "medicamento"
+        mensaje:
+          type: string
+          example: "El medicamento Metformina no fue confirmado a las 08:00"
+        leida:
+          type: boolean
+          example: false
+        creada_en:
+          type: string
+          format: date-time
+          example: "2024-03-15T08:15:00Z"
+        referencia_id:
+          type: integer
+          description: ID del objeto relacionado con la alerta
+          example: 12
+
+    # Gamificación
+    RankingItem:
+      type: object
+      properties:
+        posicion:
+          type: integer
+          example: 1
+        usuario_id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: "María López"
+        puntos:
+          type: integer
+          example: 340
+        badge_destacado:
+          type: string
+          example: "Cuidador del mes"
+
+    Badge:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3
+        nombre:
+          type: string
+          example: "Cuidador del mes"
+        descripcion:
+          type: string
+          example: "Otorgado al cuidador con más puntos en el mes"
+        icono_url:
+          type: string
+          example: "https://cuidame.hn/badges/cuidador-mes.png"
+        obtenido_en:
+          type: string
+          format: date
+          example: "2024-03-01"
+
+    # Generales
+    MensajeResponse:
+      type: object
+      properties:
+        mensaje:
+          type: string
+          example: "Operación realizada correctamente"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Datos inválidos o incompletos"
+        detalle:
+          type: string
+          example: "El campo 'correo' es requerido"
