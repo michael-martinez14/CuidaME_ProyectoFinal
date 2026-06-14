@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [error, setError] = useState("");
@@ -21,6 +23,7 @@ export default function LoginPage() {
     setCargando(true);
     try {
       console.log("login:", { correo, contrasena });
+      router.push("/dashboard");
     } catch {
       setError("No se pudo iniciar sesión. Intenta de nuevo.");
     } finally {
