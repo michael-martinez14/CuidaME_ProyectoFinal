@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
 const proximasTomas = [
@@ -36,6 +39,36 @@ const ranking = [
 const badges = ["Cuidador del mes", "Toma perfecta", "Círculo activo"];
 
 export default function DashboardPage() {
+  const [activeModal, setActiveModal] = useState<"medicamento" | "chatbot" | null>(null);
+  const [chatInput, setChatInput] = useState("");
+
+  const chatMessages = [
+    {
+      author: "assistant",
+      text: "Hola, soy tu asistente de CuidaME. ¿Qué necesitas hacer hoy?",
+    },
+    {
+      author: "assistant",
+      text: "¿Quieres registrar un medicamento nuevo o revisar una toma pendiente?",
+    },
+    {
+      author: "assistant",
+      text: "También puedo ayudarte a revisar síntomas, recordatorios o citas.",
+    },
+  ];
+
+  const quickQuestions = [
+    "Quiero registrar un medicamento nuevo",
+    "¿Cuál es la próxima toma pendiente?",
+    "Necesito configurar un recordatorio",
+    "Hay un síntoma que quiero reportar",
+  ];
+
+  const closeModal = () => {
+    setActiveModal(null);
+    setChatInput("");
+  };
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(45,212,167,0.14),_transparent_28%),linear-gradient(180deg,_#0b1d1a_0%,_#0e2235_100%)] text-white">
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-8">
@@ -234,6 +267,15 @@ export default function DashboardPage() {
                   <button
                     key={accion}
                     type="button"
+                    onClick={() => {
+                      if (accion === "Registrar medicamento") {
+                        setActiveModal("medicamento");
+                      }
+
+                      if (accion === "Abrir chatbot") {
+                        setActiveModal("chatbot");
+                      }
+                    }}
                     className="rounded-2xl border border-white/10 bg-brand-deep/45 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:border-brand-accent hover:text-brand-accent"
                   >
                     {accion}
@@ -244,6 +286,177 @@ export default function DashboardPage() {
           </div>
         </section>
       </main>
+
+      {activeModal === "medicamento" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#0f2539] p-6 shadow-2xl shadow-black/30">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-brand-muted">
+                  Registro de medicamento
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold">Agrega los datos del medicamento</h3>
+                <p className="mt-2 text-sm leading-6 text-brand-muted">
+                  Completa la información para guardar una nueva medicina y sus recordatorios.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded-full border border-white/10 px-3 py-1 text-sm text-brand-muted transition-colors hover:border-white/20 hover:text-white"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <form
+              className="mt-6 grid gap-4 md:grid-cols-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                closeModal();
+              }}
+            >
+              <label className="space-y-2">
+                <span className="text-sm text-brand-muted">Nombre del medicamento</span>
+                <input
+                  type="text"
+                  placeholder="Ej. Metformina"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-brand-accent"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm text-brand-muted">Dosis</span>
+                <input
+                  type="text"
+                  placeholder="Ej. 500 mg"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-brand-accent"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm text-brand-muted">Horario</span>
+                <input
+                  type="time"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-brand-accent"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm text-brand-muted">Frecuencia</span>
+                <select className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-brand-accent">
+                  <option className="bg-slate-900">Diaria</option>
+                  <option className="bg-slate-900">Cada 8 horas</option>
+                  <option className="bg-slate-900">Semanal</option>
+                  <option className="bg-slate-900">Según indicación</option>
+                </select>
+              </label>
+
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm text-brand-muted">Notas</span>
+                <textarea
+                  rows={4}
+                  placeholder="Ej. Tomar después de comer y confirmar cada toma."
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-brand-accent"
+                />
+              </label>
+
+              <div className="flex flex-col gap-3 md:col-span-2 md:flex-row md:justify-end">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-medium text-white transition-colors hover:border-white/20"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-2xl bg-brand-accent px-5 py-3 text-sm font-semibold text-brand-deep transition-colors hover:bg-brand-accent/90"
+                >
+                  Guardar medicamento
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {activeModal === "chatbot" && (
+        <div className="fixed bottom-6 right-6 z-50 w-[min(92vw,22rem)] overflow-hidden rounded-3xl border border-white/10 bg-[#0d1d2f] shadow-2xl shadow-black/40">
+          <div className="flex items-center justify-between border-b border-white/10 bg-brand-deep/80 px-4 py-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-brand-muted">Chatbot</p>
+              <h3 className="text-base font-semibold text-white">Asistente CuidaME</h3>
+            </div>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="rounded-full border border-white/10 px-3 py-1 text-sm text-brand-muted transition-colors hover:border-white/20 hover:text-white"
+            >
+              Cerrar
+            </button>
+          </div>
+
+          <div className="max-h-[28rem] space-y-3 overflow-y-auto px-4 py-4">
+            {chatMessages.map((message) => (
+              <div
+                key={message.text}
+                className={`flex ${message.author === "assistant" ? "justify-start" : "justify-end"}`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                    message.author === "assistant"
+                      ? "border border-white/10 bg-white/5 text-white"
+                      : "bg-brand-accent text-brand-deep"
+                  }`}
+                >
+                  {message.text}
+                </div>
+              </div>
+            ))}
+
+            <div className="space-y-2 pt-2">
+              <p className="text-xs uppercase tracking-[0.22em] text-brand-muted">Preguntas sugeridas</p>
+              <div className="flex flex-wrap gap-2">
+                {quickQuestions.map((question) => (
+                  <button
+                    key={question}
+                    type="button"
+                    onClick={() => setChatInput(question)}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-left text-xs text-white transition-colors hover:border-brand-accent hover:text-brand-accent"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <form
+            className="border-t border-white/10 p-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setChatInput("");
+            }}
+          >
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                placeholder="Escribe tu pregunta..."
+                className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-brand-accent"
+              />
+              <button
+                type="submit"
+                className="rounded-2xl bg-brand-accent px-4 py-3 text-sm font-semibold text-brand-deep transition-colors hover:bg-brand-accent/90"
+              >
+                Enviar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
