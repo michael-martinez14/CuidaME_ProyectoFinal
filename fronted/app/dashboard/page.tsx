@@ -391,9 +391,10 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={closeModal}
-              className="rounded-full border border-white/10 px-3 py-1 text-sm text-brand-muted transition-colors hover:border-white/20 hover:text-white"
+              aria-label="Cerrar chatbot"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-sm text-brand-muted transition-colors hover:border-white/20 hover:text-white"
             >
-              Cerrar
+              ❌
             </button>
           </div>
 
