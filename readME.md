@@ -11,10 +11,14 @@
 
 2. npm install
 
+3. npm run dev
+
 ### Frontend
 1. cd fronted
 
 2. npm install
+
+3. npm run dev
 
 ## Correr el proyecto
 
@@ -26,4 +30,4 @@ cd backend
 ### Frontend 
 cd fronted
 
-2. npm run dev
+1. npm run dev
