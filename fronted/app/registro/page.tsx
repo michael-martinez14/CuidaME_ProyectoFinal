@@ -44,7 +44,7 @@ export default function RegistroPage() {
   const labelClass = "mb-1 block text-sm font-medium text-white/80";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-brand-deep via-brand-dark to-brand-navy px-6 py-12">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-brand-deep px-6 py-12">
       {/* Logo */}
       <Link href="/" className="mb-8 text-2xl font-semibold tracking-tight text-white">
         CuidaME
