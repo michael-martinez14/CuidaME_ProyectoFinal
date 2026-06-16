@@ -70,7 +70,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(45,212,167,0.14),_transparent_28%),linear-gradient(180deg,_#0b1d1a_0%,_#0e2235_100%)] text-white">
+    <div className="min-h-screen bg-brand-deep text-white">
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-8">
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur md:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -229,31 +229,7 @@ export default function DashboardPage() {
               </div>
             </article>
 
-            <article className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h2 className="text-xl font-semibold">Gamificación</h2>
-              <p className="mt-1 text-sm text-brand-muted">
-                Puntos, badges y metas para reforzar la constancia del cuidador.
-              </p>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {badges.map((badge) => (
-                  <span
-                    key={badge}
-                    className="rounded-full border border-brand-accent/30 bg-brand-accent/10 px-3 py-1.5 text-sm text-brand-accent"
-                  >
-                    {badge}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-white/10 bg-brand-deep/40 p-4">
-                <p className="text-sm font-medium text-white">Meta semanal</p>
-                <p className="mt-2 text-sm leading-6 text-brand-muted">
-                  Completa 5 confirmaciones de toma para desbloquear 30 puntos
-                  extra y mantener el badge de constancia.
-                </p>
-              </div>
-            </article>
+            
 
             <article className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
               <h2 className="text-xl font-semibold">Accesos rápidos</h2>

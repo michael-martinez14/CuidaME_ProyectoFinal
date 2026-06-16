@@ -32,7 +32,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-brand-deep via-brand-dark to-brand-navy px-6">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-brand-deep px-6">
       {/* Logo */}
       <Link href="/" className="mb-8 text-2xl font-semibold tracking-tight text-white">
         CuidaME
