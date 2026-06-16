@@ -41,6 +41,7 @@ const badges = ["Cuidador del mes", "Toma perfecta", "Círculo activo"];
 export default function DashboardPage() {
   const [activeModal, setActiveModal] = useState<"medicamento" | "chatbot" | null>(null);
   const [chatInput, setChatInput] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const chatMessages = [
     {
@@ -70,8 +71,76 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-deep text-white">
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-8">
+  <div className="min-h-screen bg-brand-deep text-white">
+    <div className="flex min-h-screen">
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          transition-all duration-300 overflow-hidden
+          border-r border-white/10 bg-[#182235]
+          ${sidebarOpen ? "w-72 p-6" : "w-0 p-0 border-r-0"}
+        `}
+      >
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold">CuidaME</h2>
+          <p className="mt-1 text-sm text-brand-muted">
+            Panel principal
+          </p>
+        </div>
+
+        <nav className="space-y-2">
+          <button className="flex w-full items-center gap-3 rounded-xl bg-brand-accent px-4 py-3 text-left font-medium text-brand-deep">
+            Dashboard
+          </button>
+
+          <button className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10">
+            Medicamentos
+          </button>
+
+          <button className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10">
+            Recordatorios
+          </button>
+
+          <button className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10">
+            Alertas
+          </button>
+
+          <button className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10">
+            Familiares
+          </button>
+
+          <button className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10">
+            Ranking
+          </button>
+
+          <button
+            onClick={() => setActiveModal("chatbot")}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10"
+          >
+            Asistente
+          </button>
+        </nav>
+
+        <div className="mt-auto pt-10">
+          <Link
+            href="/login"
+            className="block w-full rounded-xl border border-white/10 px-4 py-3 text-center hover:border-red-400 hover:text-red-400"
+          >
+            ◀ Cerrar sesión
+          </Link>
+        </div>
+      </aside>
+
+      {/* Contenido principal */}
+      <main className="flex-1 px-6 py-8">
+      <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 hover:bg-white/10"
+        >
+          ☰
+        </button>
+
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur md:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl space-y-4">
@@ -147,12 +216,6 @@ export default function DashboardPage() {
                     Seguimiento basado en los medicamentos activos del paciente.
                   </p>
                 </div>
-                <Link
-                  href="/login"
-                  className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-brand-accent hover:text-brand-accent"
-                >
-                  Cerrar sesión
-                </Link>
               </div>
 
               <div className="mt-5 grid gap-3">
@@ -262,6 +325,7 @@ export default function DashboardPage() {
           </div>
         </section>
       </main>
+    </div>
 
       {activeModal === "medicamento" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
