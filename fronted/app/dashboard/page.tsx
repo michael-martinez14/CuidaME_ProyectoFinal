@@ -313,10 +313,10 @@ export default function DashboardPage() {
     "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-brand-accent";
 
   return (
-    <div className="flex min-h-screen bg-brand-deep text-white">
+    <div className="flex h-screen overflow-hidden bg-brand-deep text-white">
         {/* Sidebar */}
         <aside
-          className={`transition-all duration-300 overflow-hidden border-r border-white/10 bg-brand-darker ${
+          className={`h-full shrink-0 transition-all duration-300 overflow-hidden border-r border-white/10 bg-brand-darker ${
             sidebarOpen ? "w-72 p-6" : "w-0 p-0 border-r-0"
           }`}
         >
@@ -371,7 +371,7 @@ export default function DashboardPage() {
         </aside>
 
         {/* Columna derecha: barra superior + contenido */}
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col overflow-hidden">
           <header className="flex items-center justify-between border-b border-white/10 bg-brand-darker px-6 py-3">
             <span className="text-lg font-semibold tracking-tight">CuidaME</span>
             <div className="flex items-center gap-3">
@@ -384,7 +384,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </header>
-          <main className="flex-1 px-6 py-8">
+          <main className="flex-1 overflow-y-auto px-6 py-8">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 hover:bg-white/10"
@@ -630,29 +630,6 @@ export default function DashboardPage() {
                     </div>
                   </article>
 
-                  <article className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                    <h2 className="text-xl font-semibold">Accesos rápidos</h2>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                      <button
-                        onClick={() => setActiveModal("medicamento")}
-                        className="rounded-2xl border border-white/10 bg-brand-deep/45 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:border-brand-accent hover:text-brand-accent"
-                      >
-                        Registrar medicamento
-                      </button>
-                      <button
-                        onClick={() => setActiveModal("circulo")}
-                        className="rounded-2xl border border-white/10 bg-brand-deep/45 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:border-brand-accent hover:text-brand-accent"
-                      >
-                        Invitar familiar
-                      </button>
-                      <button
-                        onClick={() => setActiveModal("chatbot")}
-                        className="rounded-2xl border border-white/10 bg-brand-deep/45 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:border-brand-accent hover:text-brand-accent"
-                      >
-                        Abrir asistente
-                      </button>
-                    </div>
-                  </article>
                 </div>
               </section>
             </>
