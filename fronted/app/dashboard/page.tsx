@@ -316,7 +316,7 @@ export default function DashboardPage() {
     <div className="flex min-h-screen bg-brand-deep text-white">
         {/* Sidebar */}
         <aside
-          className={`transition-all duration-300 overflow-hidden border-r border-white/10 bg-[#182235] ${
+          className={`transition-all duration-300 overflow-hidden border-r border-white/10 bg-brand-darker ${
             sidebarOpen ? "w-72 p-6" : "w-0 p-0 border-r-0"
           }`}
         >
