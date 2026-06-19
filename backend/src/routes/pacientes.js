@@ -60,6 +60,21 @@ router.post("/", async (req, res) => {
   }
 });
 
+// GET /pacientes  -> listar los pacientes creados por el usuario actual
+router.get("/", async (req, res) => {
+  try {
+    const pacientes = await prisma.paciente.findMany({
+      where: { creadoPorId: req.usuarioId },
+      include: { enfermedades: true, circulo: true },
+      orderBy: { creadoEn: "desc" },
+    });
+    res.json(pacientes);
+  } catch (err) {
+    console.error("Error en GET /pacientes:", err);
+    res.status(500).json({ error: "Error interno", detalle: "No se pudieron listar los pacientes" });
+  }
+});
+
 // GET /pacientes/:id  - obtener perfil del paciente
 router.get("/:id", async (req, res) => {
   try {

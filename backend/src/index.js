@@ -119,7 +119,6 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
-// Rutas protegidas (requieren token)
 app.use("/pacientes", pacientesRouter);
 app.use("/medicamentos", medicamentosRouter);
 app.use("/circulos", circulosRouter);

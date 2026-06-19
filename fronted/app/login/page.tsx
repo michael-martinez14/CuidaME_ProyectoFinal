@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { apiFetch, guardarSesion, type Usuario } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,10 +23,17 @@ export default function LoginPage() {
 
     setCargando(true);
     try {
-      console.log("login:", { correo, contrasena });
+      const data = await apiFetch<{ token: string; usuario: Usuario }>(
+        "/auth/login",
+        {
+          method: "POST",
+          body: JSON.stringify({ correo, contrasena }),
+        }
+      );
+      guardarSesion(data.token, data.usuario);
       router.push("/dashboard");
-    } catch {
-      setError("No se pudo iniciar sesión. Intenta de nuevo.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo iniciar sesión.");
     } finally {
       setCargando(false);
     }
@@ -69,7 +77,7 @@ export default function LoginPage() {
               type="password"
               value={contrasena}
               onChange={(e) => setContrasena(e.target.value)}
-              placeholder="••••••••"
+              placeholder="********"
               className="w-full rounded-md border border-white/15 bg-brand-deep/60 px-4 py-2.5 text-white placeholder:text-white/30 focus:border-brand-accent focus:outline-none"
             />
           </div>
