@@ -5,6 +5,12 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const prisma = require("./prismaClient");
+const pacientesRouter = require("./routes/pacientes");
+const medicamentosRouter = require("./routes/medicamentos");
+const circulosRouter = require("./routes/circulos");
+const alertasRouter = require("./routes/alertas");
+const gamificacionRouter = require("./routes/gamificacion");
+const chatbotRouter = require("./routes/chatbot");
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -112,6 +118,14 @@ app.post("/auth/login", async (req, res) => {
     });
   }
 });
+
+// Rutas protegidas (requieren token)
+app.use("/pacientes", pacientesRouter);
+app.use("/medicamentos", medicamentosRouter);
+app.use("/circulos", circulosRouter);
+app.use("/alertas", alertasRouter);
+app.use("/gamificacion", gamificacionRouter);
+app.use("/chatbot", chatbotRouter);
 
 app.listen(port, () => {
   console.log(`CuidaME backend escuchando en http://localhost:${port}`);
