@@ -9,9 +9,6 @@ const ROLES = ["cuidador_principal", "cuidador_secundario", "observador"];
 
 router.use(authMiddleware);
 
-// POST /circulos/:circulo_id/invitar  -> invitar familiar por correo
-// El invitado debe ser un usuario ya registrado. Se crea su membresía como
-// "pendiente" y se devuelve un token de invitación para aceptarla.
 router.post("/:circulo_id/invitar", async (req, res) => {
   try {
     const circuloId = Number(req.params.circulo_id);

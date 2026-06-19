@@ -9,9 +9,6 @@ router.use(authMiddleware);
 
 const SEXOS = ["masculino", "femenino", "otro"];
 
-// POST /pacientes  -> crear perfil del paciente
-// Al crear el paciente se crea también su círculo familiar y se agrega
-// al usuario actual como cuidador principal (activo).
 router.post("/", async (req, res) => {
   try {
     const { nombre, fecha_nacimiento, sexo, telefono, direccion } = req.body;
@@ -63,7 +60,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET /pacientes/:id  -> obtener perfil del paciente
+// GET /pacientes/:id  - obtener perfil del paciente
 router.get("/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -87,7 +84,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// PUT /pacientes/:id  -> actualizar datos del paciente
+// PUT /pacientes/:id  - actualizar datos del paciente
 router.put("/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -128,7 +125,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// POST /pacientes/:id/enfermedades  -> agregar enfermedad al paciente
+// POST /pacientes/:id/enfermedades  - agregar enfermedad al paciente
 router.post("/:id/enfermedades", async (req, res) => {
   try {
     const pacienteId = Number(req.params.id);

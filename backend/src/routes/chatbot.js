@@ -6,10 +6,6 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-// POST /chatbot/mensaje  -> enviar consulta al chatbot
-// NOTA: respuesta de marcador de posición. La integración real con un modelo
-// de IA (OpenAI / Gemini) requiere una API key y se conectará más adelante.
-// Por ahora guardamos el mensaje del usuario y la respuesta en la base de datos.
 router.post("/mensaje", async (req, res) => {
   try {
     const { consulta } = req.body;

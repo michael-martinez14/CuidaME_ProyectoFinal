@@ -4,10 +4,9 @@ const authMiddleware = require("../authMiddleware");
 
 const router = express.Router();
 
-// Todas las rutas de medicamentos requieren estar autenticado.
 router.use(authMiddleware);
 
-// POST /medicamentos  -> registrar un nuevo medicamento
+// POST /medicamentos  - registrar un nuevo medicamento
 router.post("/", async (req, res) => {
   try {
     const {
@@ -53,7 +52,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET /medicamentos/paciente/:pacienteId?activos=true  -> listar medicamentos del paciente
+// GET /medicamentos/paciente/:pacienteId?activos=true  - listar medicamentos del paciente
 router.get("/paciente/:pacienteId", async (req, res) => {
   try {
     const pacienteId = Number(req.params.pacienteId);
@@ -78,7 +77,7 @@ router.get("/paciente/:pacienteId", async (req, res) => {
   }
 });
 
-// PUT /medicamentos/:id  -> editar medicamento
+// PUT /medicamentos/:id  - editar medicamento
 router.put("/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -123,7 +122,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE /medicamentos/:id  -> eliminar medicamento
+// DELETE /medicamentos/:id  - eliminar medicamento
 router.delete("/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);

@@ -19,7 +19,7 @@ function inicioDeMes() {
   return new Date(ahora.getFullYear(), ahora.getMonth(), 1);
 }
 
-// GET /gamificacion/puntos/:usuario_id  -> puntos totales y del mes
+
 router.get("/puntos/:usuario_id", async (req, res) => {
   try {
     const usuarioId = Number(req.params.usuario_id);
@@ -112,7 +112,6 @@ router.get("/ranking/:circulo_id", async (req, res) => {
   }
 });
 
-// GET /gamificacion/badges/:usuario_id  -> badges del usuario
 router.get("/badges/:usuario_id", async (req, res) => {
   try {
     const usuarioId = Number(req.params.usuario_id);
