@@ -31,6 +31,21 @@ type RankingItem = {
   nombre: string;
   puntos: number;
 };
+type MiembroResp = {
+  usuario_id: number;
+  nombre: string;
+  correo: string;
+  rol: string;
+  estado: string;
+  puntos: number;
+};
+type Invitacion = {
+  miembro_id: number;
+  circulo_id: number;
+  circulo_nombre: string | null;
+  paciente_nombre: string | null;
+  rol: string;
+};
 type Puntos = { puntos_totales: number; puntos_este_mes: number };
 type ChatMessage = { author: "assistant" | "user"; text: string };
 
@@ -42,11 +57,13 @@ export default function DashboardPage() {
   const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [ranking, setRanking] = useState<RankingItem[]>([]);
+  const [miembros, setMiembros] = useState<MiembroResp[]>([]);
+  const [invitaciones, setInvitaciones] = useState<Invitacion[]>([]);
   const [puntos, setPuntos] = useState<Puntos | null>(null);
   const [cargando, setCargando] = useState(true);
 
   const [activeModal, setActiveModal] = useState<
-    "medicamento" | "chatbot" | "paciente" | null
+    "medicamento" | "chatbot" | "paciente" | "circulo" | "invitaciones" | null
   >(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -65,6 +82,13 @@ export default function DashboardPage() {
   const [pacTelefono, setPacTelefono] = useState("");
   const [pacDireccion, setPacDireccion] = useState("");
   const [guardandoPac, setGuardandoPac] = useState(false);
+
+  // Invitaciones
+  const [invCorreo, setInvCorreo] = useState("");
+  const [invRol, setInvRol] = useState("cuidador_secundario");
+  const [invitando, setInvitando] = useState(false);
+  const [invMensaje, setInvMensaje] = useState("");
+  const [invError, setInvError] = useState("");
 
   // Chatbot
   const [chatInput, setChatInput] = useState("");
@@ -100,6 +124,11 @@ export default function DashboardPage() {
             `/gamificacion/ranking/${p.circulo.id}`
           );
           setRanking(rank);
+
+          const mbrs = await apiFetch<MiembroResp[]>(
+            `/circulos/${p.circulo.id}/miembros`
+          );
+          setMiembros(mbrs);
         }
       } else {
         setPaciente(null);
@@ -110,6 +139,9 @@ export default function DashboardPage() {
 
       const pts = await apiFetch<Puntos>(`/gamificacion/puntos/${u.id}`);
       setPuntos(pts);
+
+      const invs = await apiFetch<Invitacion[]>("/circulos/invitaciones");
+      setInvitaciones(invs);
     } catch (err) {
       console.error("Error cargando el dashboard:", err);
     } finally {
@@ -130,6 +162,8 @@ export default function DashboardPage() {
 
   const cerrarModal = () => {
     setActiveModal(null);
+    setInvMensaje("");
+    setInvError("");
   };
 
   function logout() {
@@ -159,7 +193,6 @@ export default function DashboardPage() {
       cerrarModal();
       if (usuario) await cargarDatos(usuario);
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "No se pudo guardar");
     } finally {
       setGuardandoMed(false);
@@ -187,10 +220,59 @@ export default function DashboardPage() {
       cerrarModal();
       if (usuario) await cargarDatos(usuario);
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "No se pudo guardar");
     } finally {
       setGuardandoPac(false);
+    }
+  }
+
+  async function invitarFamiliar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!paciente?.circulo) return;
+    setInvitando(true);
+    setInvMensaje("");
+    setInvError("");
+    try {
+      const data = await apiFetch<{ mensaje: string }>(
+        `/circulos/${paciente.circulo.id}/invitar`,
+        {
+          method: "POST",
+          body: JSON.stringify({ correo: invCorreo, rol: invRol }),
+        }
+      );
+      setInvMensaje(data.mensaje);
+      setInvCorreo("");
+      const mbrs = await apiFetch<MiembroResp[]>(
+        `/circulos/${paciente.circulo.id}/miembros`
+      );
+      setMiembros(mbrs);
+    } catch (err) {
+      setInvError(err instanceof Error ? err.message : "No se pudo invitar.");
+    } finally {
+      setInvitando(false);
+    }
+  }
+
+  async function aceptarInvitacion(miembroId: number) {
+    try {
+      await apiFetch(`/circulos/invitaciones/${miembroId}/aceptar`, {
+        method: "POST",
+      });
+      if (usuario) await cargarDatos(usuario);
+      setActiveModal(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo aceptar.");
+    }
+  }
+
+  async function rechazarInvitacion(miembroId: number) {
+    try {
+      await apiFetch(`/circulos/invitaciones/${miembroId}/rechazar`, {
+        method: "POST",
+      });
+      if (usuario) await cargarDatos(usuario);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo rechazar.");
     }
   }
 
@@ -231,8 +313,7 @@ export default function DashboardPage() {
     "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-brand-accent";
 
   return (
-    <div className="min-h-screen bg-brand-deep text-white">
-      <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-brand-deep text-white">
         {/* Sidebar */}
         <aside
           className={`transition-all duration-300 overflow-hidden border-r border-white/10 bg-[#182235] ${
@@ -240,19 +321,36 @@ export default function DashboardPage() {
           }`}
         >
           <div className="mb-8">
-            <h2 className="text-2xl font-bold">CuidaME</h2>
-            <p className="mt-1 text-sm text-brand-muted">Panel principal</p>
+            <h2 className="text-xl font-bold leading-tight">Cuidado en familia</h2>
+            <p className="mt-1 text-sm text-brand-muted">Todo en un solo lugar</p>
           </div>
 
           <nav className="space-y-2">
             <button className="flex w-full items-center gap-3 rounded-xl bg-brand-accent px-4 py-3 text-left font-medium text-brand-deep">
-              Dashboard
+              Principal
             </button>
             <button
               onClick={() => setActiveModal("medicamento")}
               className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10"
             >
               Medicamentos
+            </button>
+            <button
+              onClick={() => setActiveModal("circulo")}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10"
+            >
+              Familiares
+            </button>
+            <button
+              onClick={() => setActiveModal("invitaciones")}
+              className="flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10"
+            >
+              <span>Invitaciones</span>
+              {invitaciones.length > 0 && (
+                <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-accent px-2 text-xs font-bold text-brand-deep">
+                  {invitaciones.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveModal("chatbot")}
@@ -272,14 +370,43 @@ export default function DashboardPage() {
           </div>
         </aside>
 
-        {/* Contenido principal */}
-        <main className="flex-1 px-6 py-8">
+        {/* Columna derecha: barra superior + contenido */}
+        <div className="flex flex-1 flex-col">
+          <header className="flex items-center justify-between border-b border-white/10 bg-brand-darker px-6 py-3">
+            <span className="text-lg font-semibold tracking-tight">CuidaME</span>
+            <div className="flex items-center gap-3">
+              <div className="text-right leading-tight">
+                <p className="text-sm font-medium text-white">{usuario?.nombre ?? ""}</p>
+                <p className="text-xs text-brand-muted">{usuario?.correo ?? ""}</p>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-accent text-sm font-bold text-brand-deep">
+                {usuario?.nombre ? usuario.nombre.charAt(0).toUpperCase() : "U"}
+              </div>
+            </div>
+          </header>
+          <main className="flex-1 px-6 py-8">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 hover:bg-white/10"
           >
             ☰
           </button>
+
+          {invitaciones.length > 0 && (
+            <button
+              onClick={() => setActiveModal("invitaciones")}
+              className="mb-6 flex w-full items-center justify-between gap-3 rounded-2xl border border-brand-accent/40 bg-brand-accent/10 px-5 py-4 text-left"
+            >
+              <span className="text-sm font-medium text-brand-accent">
+                Tienes {invitaciones.length} invitación
+                {invitaciones.length > 1 ? "es" : ""} pendiente
+                {invitaciones.length > 1 ? "s" : ""} a un círculo familiar.
+              </span>
+              <span className="text-sm font-semibold text-brand-accent">
+                Ver →
+              </span>
+            </button>
+          )}
 
           {cargando ? (
             <p className="text-brand-muted">Cargando tu panel...</p>
@@ -304,9 +431,7 @@ export default function DashboardPage() {
               <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur md:p-8">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                   <div className="max-w-3xl space-y-4">
-                    <span className="inline-flex rounded-full border border-brand-accent/30 bg-brand-accent/10 px-4 py-1 text-sm font-medium text-brand-accent">
-                      Panel principal
-                    </span>
+                    
                     <div>
                       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                         Hola, {usuario?.nombre}. Hoy tienes el cuidado bajo
@@ -464,10 +589,20 @@ export default function DashboardPage() {
 
                 <div className="space-y-6">
                   <article className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                    <h2 className="text-xl font-semibold">Círculo familiar</h2>
-                    <p className="mt-1 text-sm text-brand-muted">
-                      Miembros del círculo y su ranking de puntos.
-                    </p>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-xl font-semibold">Círculo familiar</h2>
+                        <p className="mt-1 text-sm text-brand-muted">
+                          Miembros del círculo y su ranking.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setActiveModal("circulo")}
+                        className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium hover:border-brand-accent hover:text-brand-accent"
+                      >
+                        Gestionar
+                      </button>
+                    </div>
 
                     <div className="mt-5 space-y-3">
                       {ranking.length === 0 ? (
@@ -503,6 +638,12 @@ export default function DashboardPage() {
                         className="rounded-2xl border border-white/10 bg-brand-deep/45 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:border-brand-accent hover:text-brand-accent"
                       >
                         Registrar medicamento
+                      </button>
+                      <button
+                        onClick={() => setActiveModal("circulo")}
+                        className="rounded-2xl border border-white/10 bg-brand-deep/45 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:border-brand-accent hover:text-brand-accent"
+                      >
+                        Invitar familiar
                       </button>
                       <button
                         onClick={() => setActiveModal("chatbot")}
@@ -711,6 +852,168 @@ export default function DashboardPage() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal círculo familiar (miembros + invitar) */}
+      {activeModal === "circulo" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0f2539] p-6 shadow-2xl shadow-black/30">
+            <div className="flex items-start justify-between gap-4">
+              <h3 className="text-2xl font-semibold">Círculo familiar</h3>
+              <button
+                onClick={cerrarModal}
+                className="rounded-full border border-white/10 px-3 py-1 text-sm text-brand-muted hover:border-white/20 hover:text-white"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {!paciente?.circulo ? (
+              <p className="mt-6 text-sm text-brand-muted">
+                Primero crea un paciente para tener un círculo familiar.
+              </p>
+            ) : (
+              <>
+                <div className="mt-6">
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-brand-muted">
+                    Miembros
+                  </h4>
+                  <div className="mt-3 space-y-2">
+                    {miembros.length === 0 ? (
+                      <p className="text-sm text-brand-muted">
+                        Sin miembros todavía.
+                      </p>
+                    ) : (
+                      miembros.map((m) => (
+                        <div
+                          key={m.usuario_id}
+                          className="flex items-center justify-between rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-3"
+                        >
+                          <div>
+                            <p className="font-medium">{m.nombre}</p>
+                            <p className="text-xs text-brand-muted">{m.correo}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-brand-accent">
+                              {m.rol.replace(/_/g, " ")}
+                            </p>
+                            <p className="text-xs text-brand-muted">{m.estado}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={invitarFamiliar}
+                  className="mt-6 border-t border-white/10 pt-6"
+                >
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-brand-muted">
+                    Invitar familiar
+                  </h4>
+                  <p className="mt-1 text-xs text-brand-muted">
+                    El familiar debe estar registrado en CuidaME con ese correo.
+                    La invitación le aparecerá en su panel.
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <input
+                      required
+                      type="email"
+                      value={invCorreo}
+                      onChange={(e) => setInvCorreo(e.target.value)}
+                      placeholder="correo@ejemplo.com"
+                      className={inputClass}
+                    />
+                    <select
+                      value={invRol}
+                      onChange={(e) => setInvRol(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option className="bg-slate-900" value="cuidador_secundario">
+                        Cuidador secundario
+                      </option>
+                      <option className="bg-slate-900" value="cuidador_principal">
+                        Cuidador principal
+                      </option>
+                      <option className="bg-slate-900" value="observador">
+                        Observador
+                      </option>
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={invitando}
+                    className="mt-3 rounded-2xl bg-brand-accent px-5 py-3 text-sm font-semibold text-brand-deep hover:bg-white disabled:opacity-50"
+                  >
+                    {invitando ? "Invitando..." : "Enviar invitación"}
+                  </button>
+
+                  {invMensaje && (
+                    <p className="mt-3 text-sm text-brand-accent">{invMensaje}</p>
+                  )}
+                  {invError && (
+                    <p className="mt-3 text-sm text-red-400">{invError}</p>
+                  )}
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal invitaciones recibidas */}
+      {activeModal === "invitaciones" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0f2539] p-6 shadow-2xl shadow-black/30">
+            <div className="flex items-start justify-between gap-4">
+              <h3 className="text-2xl font-semibold">Mis invitaciones</h3>
+              <button
+                onClick={cerrarModal}
+                className="rounded-full border border-white/10 px-3 py-1 text-sm text-brand-muted hover:border-white/20 hover:text-white"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {invitaciones.length === 0 ? (
+                <p className="text-sm text-brand-muted">
+                  No tienes invitaciones pendientes.
+                </p>
+              ) : (
+                invitaciones.map((inv) => (
+                  <div
+                    key={inv.miembro_id}
+                    className="rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-4"
+                  >
+                    <p className="font-medium">
+                      {inv.circulo_nombre || "Círculo familiar"}
+                    </p>
+                    <p className="text-sm text-brand-muted">
+                      Paciente: {inv.paciente_nombre || "—"} · Rol:{" "}
+                      {inv.rol.replace(/_/g, " ")}
+                    </p>
+                    <div className="mt-3 flex gap-3">
+                      <button
+                        onClick={() => aceptarInvitacion(inv.miembro_id)}
+                        className="rounded-xl bg-brand-accent px-4 py-2 text-sm font-semibold text-brand-deep hover:bg-white"
+                      >
+                        Aceptar
+                      </button>
+                      <button
+                        onClick={() => rechazarInvitacion(inv.miembro_id)}
+                        className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-white hover:border-red-400 hover:text-red-400"
+                      >
+                        Rechazar
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}

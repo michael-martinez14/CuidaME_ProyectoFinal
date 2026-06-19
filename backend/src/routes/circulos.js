@@ -9,6 +9,80 @@ const ROLES = ["cuidador_principal", "cuidador_secundario", "observador"];
 
 router.use(authMiddleware);
 
+// GET /circulos/invitaciones  -> invitaciones pendientes del usuario actual
+router.get("/invitaciones", async (req, res) => {
+  try {
+    const invitaciones = await prisma.miembroCirculo.findMany({
+      where: { usuarioId: req.usuarioId, estado: "pendiente" },
+      include: { circulo: { include: { paciente: true } } },
+      orderBy: { id: "desc" },
+    });
+
+    const respuesta = invitaciones.map((i) => ({
+      miembro_id: i.id,
+      circulo_id: i.circuloId,
+      circulo_nombre: i.circulo.nombre,
+      paciente_nombre: i.circulo.paciente ? i.circulo.paciente.nombre : null,
+      rol: i.rol,
+    }));
+
+    res.json(respuesta);
+  } catch (err) {
+    console.error("Error en GET /circulos/invitaciones:", err);
+    res.status(500).json({ error: "Error interno", detalle: "No se pudieron listar las invitaciones" });
+  }
+});
+
+// POST /circulos/invitaciones/:miembroId/aceptar  -> aceptar una invitación
+router.post("/invitaciones/:miembroId/aceptar", async (req, res) => {
+  try {
+    const miembroId = Number(req.params.miembroId);
+    if (Number.isNaN(miembroId)) {
+      return res.status(400).json({ error: "Datos inválidos", detalle: "id no válido" });
+    }
+
+    const miembro = await prisma.miembroCirculo.findUnique({ where: { id: miembroId } });
+    if (!miembro || miembro.usuarioId !== req.usuarioId) {
+      return res.status(404).json({ error: "Recurso no encontrado", detalle: "La invitación no existe" });
+    }
+
+    await prisma.miembroCirculo.update({
+      where: { id: miembroId },
+      data: { estado: "activo" },
+    });
+
+    res.json({ mensaje: "Invitación aceptada, ahora eres parte del círculo" });
+  } catch (err) {
+    console.error("Error en POST /circulos/invitaciones/:miembroId/aceptar:", err);
+    res.status(500).json({ error: "Error interno", detalle: "No se pudo aceptar la invitación" });
+  }
+});
+
+// POST /circulos/invitaciones/:miembroId/rechazar  -> rechazar una invitación
+router.post("/invitaciones/:miembroId/rechazar", async (req, res) => {
+  try {
+    const miembroId = Number(req.params.miembroId);
+    if (Number.isNaN(miembroId)) {
+      return res.status(400).json({ error: "Datos inválidos", detalle: "id no válido" });
+    }
+
+    const miembro = await prisma.miembroCirculo.findUnique({ where: { id: miembroId } });
+    if (!miembro || miembro.usuarioId !== req.usuarioId) {
+      return res.status(404).json({ error: "Recurso no encontrado", detalle: "La invitación no existe" });
+    }
+
+    await prisma.miembroCirculo.delete({ where: { id: miembroId } });
+
+    res.json({ mensaje: "Invitación rechazada" });
+  } catch (err) {
+    console.error("Error en POST /circulos/invitaciones/:miembroId/rechazar:", err);
+    res.status(500).json({ error: "Error interno", detalle: "No se pudo rechazar la invitación" });
+  }
+});
+
+// POST /circulos/:circulo_id/invitar  -> invitar familiar por correo
+// El invitado debe ser un usuario ya registrado. Se crea su membresía como
+// "pendiente"; el invitado la verá en su lista de invitaciones.
 router.post("/:circulo_id/invitar", async (req, res) => {
   try {
     const circuloId = Number(req.params.circulo_id);
@@ -37,14 +111,18 @@ router.post("/:circulo_id/invitar", async (req, res) => {
       });
     }
 
+    if (invitado.id === req.usuarioId) {
+      return res.status(400).json({ error: "Datos inválidos", detalle: "No puedes invitarte a ti mismo" });
+    }
+
     const yaExiste = await prisma.miembroCirculo.findUnique({
       where: { usuarioId_circuloId: { usuarioId: invitado.id, circuloId } },
     });
     if (yaExiste) {
-      return res.status(400).json({ error: "Datos inválidos", detalle: "El usuario ya pertenece al círculo" });
+      return res.status(400).json({ error: "Datos inválidos", detalle: "El usuario ya pertenece al círculo o fue invitado" });
     }
 
-    const miembro = await prisma.miembroCirculo.create({
+    await prisma.miembroCirculo.create({
       data: {
         usuarioId: invitado.id,
         circuloId,
@@ -53,19 +131,14 @@ router.post("/:circulo_id/invitar", async (req, res) => {
       },
     });
 
-    const tokenInvitacion = jwt.sign({ miembroId: miembro.id }, JWT_SECRET, { expiresIn: "7d" });
-
-    res.json({
-      mensaje: "Invitación enviada correctamente",
-      token_invitacion: tokenInvitacion,
-    });
+    res.json({ mensaje: "Invitación enviada correctamente" });
   } catch (err) {
     console.error("Error en POST /circulos/:circulo_id/invitar:", err);
     res.status(500).json({ error: "Error interno", detalle: "No se pudo enviar la invitación" });
   }
 });
 
-// POST /circulos/aceptar-invitacion  -> aceptar invitación al círculo
+// POST /circulos/aceptar-invitacion  -> aceptar con token (compatibilidad)
 router.post("/aceptar-invitacion", async (req, res) => {
   try {
     const { token_invitacion } = req.body;

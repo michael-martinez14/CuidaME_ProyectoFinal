@@ -64,7 +64,16 @@ router.post("/", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const pacientes = await prisma.paciente.findMany({
-      where: { creadoPorId: req.usuarioId },
+      where: {
+        OR: [
+          { creadoPorId: req.usuarioId },
+          {
+            circulo: {
+              miembros: { some: { usuarioId: req.usuarioId, estado: "activo" } },
+            },
+          },
+        ],
+      },
       include: { enfermedades: true, circulo: true },
       orderBy: { creadoEn: "desc" },
     });
