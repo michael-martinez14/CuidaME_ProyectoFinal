@@ -1,0 +1,227 @@
+// Prisma schema para CuidaME (MySQL)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Sexo {
+  masculino
+  femenino
+  otro
+}
+
+enum RolCirculo {
+  cuidador_principal
+  cuidador_secundario
+  observador
+}
+
+enum EstadoMiembro {
+  activo
+  inactivo
+  pendiente
+}
+
+enum TipoAlerta {
+  medicamento
+  cita
+  sintoma
+  stock
+  familiar
+}
+
+enum EstadoToma {
+  pendiente
+  confirmado
+  omitido
+}
+
+enum TipoMedicion {
+  presion
+  glucosa
+  peso
+}
+
+enum AutorMensaje {
+  usuario
+  asistente
+}
+
+model Usuario {
+  id         Int      @id @default(autoincrement())
+  nombre     String
+  correo     String   @unique
+  contrasena String 
+  telefono   String?
+  creadoEn   DateTime @default(now())
+
+  pacientes             Paciente[] 
+  membresias            MiembroCirculo[]
+  alertas               Alerta[]
+  badges                UsuarioBadge[]
+  acciones              AccionPuntos[]
+  mensajes              MensajeChat[]
+  tomasConfirmadas      RegistroToma[]
+  medicionesRegistradas Medicion[]
+}
+
+model Paciente {
+  id              Int      @id @default(autoincrement())
+  nombre          String
+  fechaNacimiento DateTime @db.Date
+  sexo            Sexo
+  telefono        String?
+  direccion       String?
+  creadoEn        DateTime @default(now())
+
+  creadoPorId Int?
+  creadoPor   Usuario? @relation(fields: [creadoPorId], references: [id])
+
+  enfermedades Enfermedad[]
+  medicamentos Medicamento[]
+  mediciones   Medicion[]
+  circulo      Circulo?
+}
+
+model Enfermedad {
+  id               Int       @id @default(autoincrement())
+  nombre           String
+  fechaDiagnostico DateTime? @db.Date
+  medicoTratante   String?
+  notas            String?   @db.Text
+
+  pacienteId Int
+  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+}
+
+model Circulo {
+  id       Int      @id @default(autoincrement())
+  nombre   String?
+  creadoEn DateTime @default(now())
+
+  pacienteId Int      @unique // un círculo por paciente
+  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  miembros MiembroCirculo[]
+  acciones AccionPuntos[]
+}
+
+model MiembroCirculo {
+  id     Int           @id @default(autoincrement())
+  rol    RolCirculo    @default(observador)
+  estado EstadoMiembro @default(pendiente)
+  puntos Int           @default(0)
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  circuloId Int
+  circulo   Circulo @relation(fields: [circuloId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, circuloId])
+}
+
+model Medicamento {
+  id              Int       @id @default(autoincrement())
+  nombre          String
+  dosis           String
+  frecuenciaHoras Int
+  horaInicio      String // formato "HH:mm", ej. "08:00"
+  fechaInicio     DateTime? @db.Date
+  fechaFin        DateTime? @db.Date
+  instrucciones   String?   @db.Text
+  activo          Boolean   @default(true)
+  creadoEn        DateTime  @default(now())
+
+  pacienteId Int
+  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  tomas RegistroToma[]
+}
+
+model RegistroToma {
+  id        Int        @id @default(autoincrement())
+  fechaHora DateTime
+  estado    EstadoToma @default(pendiente)
+  creadoEn  DateTime   @default(now())
+
+  medicamentoId Int
+  medicamento   Medicamento @relation(fields: [medicamentoId], references: [id], onDelete: Cascade)
+
+  confirmadoPorId Int?
+  confirmadoPor   Usuario? @relation(fields: [confirmadoPorId], references: [id])
+}
+
+model Medicion {
+  id        Int          @id @default(autoincrement())
+  tipo      TipoMedicion
+  valor     String // ej. "120/80", "110", "70.5"
+  unidad    String? // ej. "mmHg", "mg/dL", "kg"
+  fechaHora DateTime     @default(now())
+
+  pacienteId Int
+  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  registradoPorId Int?
+  registradoPor   Usuario? @relation(fields: [registradoPorId], references: [id])
+}
+
+model Alerta {
+  id           Int        @id @default(autoincrement())
+  tipo         TipoAlerta
+  mensaje      String     @db.Text
+  leida        Boolean    @default(false)
+  referenciaId Int? // id del objeto relacionado (medicamento, cita, etc.)
+  creadaEn     DateTime   @default(now())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model Badge {
+  id          Int     @id @default(autoincrement())
+  nombre      String
+  descripcion String? @db.Text
+  iconoUrl    String?
+
+  usuarios UsuarioBadge[]
+}
+
+model UsuarioBadge {
+  id         Int      @id @default(autoincrement())
+  obtenidoEn DateTime @default(now())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  badgeId   Int
+  badge     Badge   @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, badgeId])
+}
+
+model AccionPuntos {
+  id       Int      @id @default(autoincrement())
+  tipo     String // ej. "confirmar_toma", "registrar_medicion"
+  puntos   Int
+  creadoEn DateTime @default(now())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  circuloId Int?
+  circulo   Circulo? @relation(fields: [circuloId], references: [id])
+}
+
+model MensajeChat {
+  id        Int          @id @default(autoincrement())
+  autor     AutorMensaje
+  contenido String       @db.Text
+  creadoEn  DateTime     @default(now())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+

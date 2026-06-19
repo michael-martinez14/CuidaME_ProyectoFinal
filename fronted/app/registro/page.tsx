@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { apiFetch, guardarSesion, type Usuario } from "@/lib/api";
 
 export default function RegistroPage() {
+  const router = useRouter();
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -31,9 +34,17 @@ export default function RegistroPage() {
 
     setCargando(true);
     try {
-      console.log("registro:", { nombre, correo, contrasena, telefono });
-    } catch {
-      setError("No se pudo crear la cuenta. Intenta de nuevo.");
+      const data = await apiFetch<{ token: string; usuario: Usuario }>(
+        "/auth/registro",
+        {
+          method: "POST",
+          body: JSON.stringify({ nombre, correo, contrasena, telefono }),
+        }
+      );
+      guardarSesion(data.token, data.usuario);
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo crear la cuenta.");
     } finally {
       setCargando(false);
     }
