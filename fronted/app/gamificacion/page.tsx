@@ -38,8 +38,6 @@ type Paciente = {
   circulo: { id: number; nombre: string | null } | null;
 };
 
-// Catálogo informativo: cómo se gana cada tipo de punto. Los puntos NO se
-// asignan a mano desde aquí; se otorgan automáticamente al realizar la acción.
 const ACCIONES: { tipo: TipoAccion; titulo: string; detalle: string }[] = [
   {
     tipo: "confirmar_toma",
@@ -183,7 +181,7 @@ export default function GamificacionPage() {
       <header className="flex items-center justify-between border-b border-white/10 bg-brand-darker px-6 py-4">
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-brand-muted">CuidaME</p>
-          <h1 className="text-xl font-semibold">Gamificación y notificaciones</h1>
+          <h1 className="text-xl font-semibold">Mis puntos y notificaciones</h1>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -292,34 +290,7 @@ export default function GamificacionPage() {
             </div>
 
             {/* Badges */}
-            <section className={card}>
-              <h2 className="text-xl font-semibold">Mis insignias</h2>
-              <p className="mt-1 text-sm text-brand-muted">
-                Reconocimientos que has obtenido por cuidar.
-              </p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {badges.length === 0 ? (
-                  <p className="text-sm text-brand-muted">Todavía no tienes insignias.</p>
-                ) : (
-                  badges.map((b) => (
-                    <div
-                      key={b.id}
-                      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-4"
-                    >
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-accent/15 text-lg">
-                        {b.icono_url ? "🏅" : "🏅"}
-                      </span>
-                      <div>
-                        <p className="font-medium">{b.nombre}</p>
-                        {b.descripcion && (
-                          <p className="text-xs text-brand-muted">{b.descripcion}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
+            
 
             {/* Notificaciones y alarmas */}
             <section className={card}>
