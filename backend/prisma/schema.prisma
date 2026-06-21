@@ -46,6 +46,12 @@ enum TipoMedicion {
   peso
 }
 
+enum IntensidadSintoma {
+  leve
+  moderada
+  severa
+}
+
 enum AutorMensaje {
   usuario
   asistente
@@ -59,7 +65,7 @@ model Usuario {
   telefono   String?
   creadoEn   DateTime @default(now())
 
-  pacientes             Paciente[] 
+  pacientes             Paciente[]
   membresias            MiembroCirculo[]
   alertas               Alerta[]
   badges                UsuarioBadge[]
@@ -67,6 +73,7 @@ model Usuario {
   mensajes              MensajeChat[]
   tomasConfirmadas      RegistroToma[]
   medicionesRegistradas Medicion[]
+  sintomasRegistrados   Sintoma[]
 }
 
 model Paciente {
@@ -84,6 +91,7 @@ model Paciente {
   enfermedades Enfermedad[]
   medicamentos Medicamento[]
   mediciones   Medicion[]
+  sintomas     Sintoma[]
   circulo      Circulo?
 }
 
@@ -115,6 +123,9 @@ model MiembroCirculo {
   rol    RolCirculo    @default(observador)
   estado EstadoMiembro @default(pendiente)
   puntos Int           @default(0)
+
+  // Usuario que envió la invitación. Al aceptarla se le otorgan puntos.
+  invitadoPorId Int?
 
   usuarioId Int
   usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
@@ -161,6 +172,19 @@ model Medicion {
   valor     String // ej. "120/80", "110", "70.5"
   unidad    String? // ej. "mmHg", "mg/dL", "kg"
   fechaHora DateTime     @default(now())
+
+  pacienteId Int
+  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  registradoPorId Int?
+  registradoPor   Usuario? @relation(fields: [registradoPorId], references: [id])
+}
+
+model Sintoma {
+  id          Int                @id @default(autoincrement())
+  descripcion String             @db.Text
+  intensidad  IntensidadSintoma?
+  fechaHora   DateTime           @default(now())
 
   pacienteId Int
   paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)

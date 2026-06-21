@@ -2,8 +2,31 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const prisma = require("../prismaClient");
 const authMiddleware = require("../authMiddleware");
+const { otorgarPuntos } = require("../puntos");
 
 const router = express.Router();
+
+// Acepta una invitación pendiente: marca al miembro como activo y, si se
+// registró quién lo invitó, le otorga los puntos por sumar un familiar.
+// Devuelve true si la invitación estaba pendiente y se aceptó.
+async function aceptarMiembro(miembro) {
+  if (miembro.estado !== "pendiente") return false;
+
+  await prisma.miembroCirculo.update({
+    where: { id: miembro.id },
+    data: { estado: "activo" },
+  });
+
+  if (miembro.invitadoPorId) {
+    await otorgarPuntos({
+      usuarioId: miembro.invitadoPorId,
+      tipo: "invitar_familiar",
+      circuloId: miembro.circuloId,
+    });
+  }
+
+  return true;
+}
 const JWT_SECRET = process.env.JWT_SECRET || "cuidame-dev-secret-cambiar";
 const ROLES = ["cuidador_principal", "cuidador_secundario", "observador"];
 
@@ -46,10 +69,7 @@ router.post("/invitaciones/:miembroId/aceptar", async (req, res) => {
       return res.status(404).json({ error: "Recurso no encontrado", detalle: "La invitación no existe" });
     }
 
-    await prisma.miembroCirculo.update({
-      where: { id: miembroId },
-      data: { estado: "activo" },
-    });
+    await aceptarMiembro(miembro);
 
     res.json({ mensaje: "Invitación aceptada, ahora eres parte del círculo" });
   } catch (err) {
@@ -128,6 +148,7 @@ router.post("/:circulo_id/invitar", async (req, res) => {
         circuloId,
         rol: rol || "observador",
         estado: "pendiente",
+        invitadoPorId: req.usuarioId,
       },
     });
 
@@ -161,10 +182,7 @@ router.post("/aceptar-invitacion", async (req, res) => {
       return res.status(401).json({ error: "Esta invitación no es para ti" });
     }
 
-    await prisma.miembroCirculo.update({
-      where: { id: miembro.id },
-      data: { estado: "activo" },
-    });
+    await aceptarMiembro(miembro);
 
     res.json({ mensaje: "Invitación aceptada, ahora eres parte del círculo" });
   } catch (err) {

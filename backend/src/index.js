@@ -11,6 +11,7 @@ const circulosRouter = require("./routes/circulos");
 const alertasRouter = require("./routes/alertas");
 const gamificacionRouter = require("./routes/gamificacion");
 const chatbotRouter = require("./routes/chatbot");
+const sintomasRouter = require("./routes/sintomas");
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -125,6 +126,7 @@ app.use("/circulos", circulosRouter);
 app.use("/alertas", alertasRouter);
 app.use("/gamificacion", gamificacionRouter);
 app.use("/chatbot", chatbotRouter);
+app.use("/sintomas", sintomasRouter);
 
 app.listen(port, () => {
   console.log(`CuidaME backend escuchando en http://localhost:${port}`);

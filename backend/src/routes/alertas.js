@@ -32,6 +32,43 @@ router.get("/", async (req, res) => {
   }
 });
 
+// POST /alertas  -> crear una alerta para el usuario actual.
+// Evita duplicados: si ya existe una alerta no leída con el mismo tipo y
+// mensaje, devuelve esa en vez de crear otra.
+router.post("/", async (req, res) => {
+  try {
+    const { tipo, mensaje, referencia_id } = req.body;
+
+    if (!tipo || !TIPOS.includes(tipo)) {
+      return res.status(400).json({ error: "Datos inválidos", detalle: "tipo de alerta no válido" });
+    }
+    if (!mensaje || !mensaje.trim()) {
+      return res.status(400).json({ error: "Datos inválidos", detalle: "mensaje es requerido" });
+    }
+
+    const existente = await prisma.alerta.findFirst({
+      where: { usuarioId: req.usuarioId, tipo, mensaje, leida: false },
+    });
+    if (existente) {
+      return res.status(200).json(existente);
+    }
+
+    const alerta = await prisma.alerta.create({
+      data: {
+        usuarioId: req.usuarioId,
+        tipo,
+        mensaje: mensaje.trim(),
+        referenciaId: referencia_id != null ? Number(referencia_id) : null,
+      },
+    });
+
+    res.status(201).json(alerta);
+  } catch (err) {
+    console.error("Error en POST /alertas:", err);
+    res.status(500).json({ error: "Error interno", detalle: "No se pudo crear la alerta" });
+  }
+});
+
 // PATCH /alertas/:alerta_id/leer  -> marcar alerta como leída
 router.patch("/:alerta_id/leer", async (req, res) => {
   try {
