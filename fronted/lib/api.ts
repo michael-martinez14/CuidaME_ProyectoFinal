@@ -90,13 +90,11 @@ export type Badge = {
 export type TipoAccion =
   | "confirmar_toma"
   | "registrar_sintoma"
-  | "agendar_cita"
   | "invitar_familiar";
 
 export const PUNTOS_POR_ACCION: Record<TipoAccion, number> = {
-  confirmar_toma: 10,
+  confirmar_toma: 18,
   registrar_sintoma: 5,
-  agendar_cita: 8,
   invitar_familiar: 15,
 };
 
@@ -106,8 +104,19 @@ export type AccionResultado = {
   puntos_totales: number;
 };
 
+export type AccionHistorial = {
+  id: number;
+  tipo: TipoAccion | string;
+  puntos: number;
+  creado_en: string;
+};
+
 export function obtenerPuntos(usuarioId: number) {
   return apiFetch<Puntos>(`/gamificacion/puntos/${usuarioId}`);
+}
+
+export function obtenerHistorial(usuarioId: number) {
+  return apiFetch<AccionHistorial[]>(`/gamificacion/historial/${usuarioId}`);
 }
 
 export function obtenerRanking(circuloId: number) {
@@ -151,8 +160,56 @@ export function obtenerAlertas(tipo?: string) {
   return apiFetch<Alerta[]>(`/alertas${query}`);
 }
 
+export function crearAlerta(tipo: string, mensaje: string, referenciaId?: number) {
+  return apiFetch<Alerta>("/alertas", {
+    method: "POST",
+    body: JSON.stringify({ tipo, mensaje, referencia_id: referenciaId }),
+  });
+}
+
 export function marcarAlertaLeida(alertaId: number) {
   return apiFetch<{ mensaje: string }>(`/alertas/${alertaId}/leer`, {
     method: "PATCH",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Síntomas
+// ---------------------------------------------------------------------------
+
+export type IntensidadSintoma = "leve" | "moderada" | "severa";
+
+export type Sintoma = {
+  id: number;
+  descripcion: string;
+  intensidad: IntensidadSintoma | null;
+  fechaHora: string;
+  pacienteId: number;
+  registradoPorId: number | null;
+  registradoPor?: { id: number; nombre: string } | null;
+};
+
+export function obtenerSintomas(pacienteId: number) {
+  return apiFetch<Sintoma[]>(`/sintomas/paciente/${pacienteId}`);
+}
+
+export function registrarSintoma(
+  pacienteId: number,
+  descripcion: string,
+  intensidad?: IntensidadSintoma
+) {
+  return apiFetch<Sintoma & { puntos_sumados: number }>("/sintomas", {
+    method: "POST",
+    body: JSON.stringify({
+      paciente_id: pacienteId,
+      descripcion,
+      intensidad,
+    }),
+  });
+}
+
+export function eliminarSintoma(sintomaId: number) {
+  return apiFetch<{ mensaje: string }>(`/sintomas/${sintomaId}`, {
+    method: "DELETE",
   });
 }

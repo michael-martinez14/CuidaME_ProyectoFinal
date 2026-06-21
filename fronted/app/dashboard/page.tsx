@@ -10,7 +10,13 @@ import {
   cerrarSesion,
   registrarAccion,
   marcarAlertaLeida,
+  crearAlerta,
+  obtenerSintomas,
+  registrarSintoma,
+  eliminarSintoma,
   type Usuario,
+  type Sintoma,
+  type IntensidadSintoma,
 } from "@/lib/api";
 import {
   useAlarmasMedicamentos,
@@ -18,7 +24,9 @@ import {
   permisoNotificaciones,
   notificacionesSoportadas,
   proximaToma,
+  tomaVencida,
   formatHora12,
+  type MedicamentoAlarma,
 } from "@/lib/alarmas";
 
 type Circulo = { id: number; nombre: string | null };
@@ -61,12 +69,35 @@ type Invitacion = {
 type Puntos = { puntos_totales: number; puntos_este_mes: number };
 type ChatMessage = { author: "assistant" | "user"; text: string };
 
+// Crea (sin duplicar) una alerta activa por cada medicamento cuya hora de toma
+// ya llegó hoy. El backend deduplica por mensaje, así que es seguro repetir.
+async function sincronizarAlertasMedicamentos(meds: MedicamentoAlarma[]) {
+  const ahora = new Date();
+  const ahoraMin = ahora.getHours() * 60 + ahora.getMinutes();
+  await Promise.all(
+    meds.map(async (med) => {
+      const vencida = tomaVencida(med, ahoraMin);
+      if (!vencida) return;
+      try {
+        await crearAlerta(
+          "medicamento",
+          `Es hora de ${med.nombre} (${med.dosis}) — ${formatHora12(vencida.hora)}`,
+          med.id
+        );
+      } catch {
+        /* si una alerta falla, continuamos con las demás */
+      }
+    })
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [paciente, setPaciente] = useState<Paciente | null>(null);
   const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
+  const [sintomas, setSintomas] = useState<Sintoma[]>([]);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [ranking, setRanking] = useState<RankingItem[]>([]);
   const [miembros, setMiembros] = useState<MiembroResp[]>([]);
@@ -77,7 +108,13 @@ export default function DashboardPage() {
   const [confirmandoToma, setConfirmandoToma] = useState<number | null>(null);
 
   const [activeModal, setActiveModal] = useState<
-    "medicamento" | "chatbot" | "paciente" | "circulo" | "invitaciones" | null
+    | "medicamento"
+    | "sintoma"
+    | "chatbot"
+    | "paciente"
+    | "circulo"
+    | "invitaciones"
+    | null
   >(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -88,6 +125,11 @@ export default function DashboardPage() {
   const [medFrecuencia, setMedFrecuencia] = useState("24");
   const [medNotas, setMedNotas] = useState("");
   const [guardandoMed, setGuardandoMed] = useState(false);
+
+  // Formulario de síntoma
+  const [sintDescripcion, setSintDescripcion] = useState("");
+  const [sintIntensidad, setSintIntensidad] = useState<IntensidadSintoma>("leve");
+  const [guardandoSint, setGuardandoSint] = useState(false);
 
   // Formulario de paciente
   const [pacNombre, setPacNombre] = useState("");
@@ -133,6 +175,21 @@ export default function DashboardPage() {
         );
         setMedicamentos(meds);
 
+        // Síntomas y alertas de medicamentos son opcionales: si fallan, no
+        // deben impedir que se carguen familiares, puntos, etc.
+        try {
+          const sints = await obtenerSintomas(p.id);
+          setSintomas(sints);
+        } catch (err) {
+          console.error("No se pudieron cargar los síntomas:", err);
+        }
+
+        try {
+          await sincronizarAlertasMedicamentos(meds);
+        } catch (err) {
+          console.error("No se pudieron generar las alertas de medicamentos:", err);
+        }
+
         if (p.circulo) {
           const rank = await apiFetch<RankingItem[]>(
             `/gamificacion/ranking/${p.circulo.id}`
@@ -175,8 +232,20 @@ export default function DashboardPage() {
     cargarDatos(u);
   }, [router, cargarDatos]);
 
-  // Alarmas: dispara notificaciones del navegador a la hora de cada toma.
-  useAlarmasMedicamentos(medicamentos, { activo: permisoNotif === "granted" });
+  // Alarmas: dispara notificaciones del navegador a la hora de cada toma y
+  // crea la alerta correspondiente en "Alertas activas".
+  useAlarmasMedicamentos(medicamentos, {
+    activo: permisoNotif === "granted",
+    onAlarma: async (med) => {
+      try {
+        await sincronizarAlertasMedicamentos([med]);
+        const al = await apiFetch<Alerta[]>("/alertas");
+        setAlertas(al);
+      } catch {
+        /* ignoramos errores de red al refrescar alertas */
+      }
+    },
+  });
 
   async function activarNotificaciones() {
     const resultado = await solicitarPermisoNotificaciones();
@@ -194,6 +263,26 @@ export default function DashboardPage() {
       alert(err instanceof Error ? err.message : "No se pudo confirmar la toma.");
     } finally {
       setConfirmandoToma(null);
+    }
+  }
+
+  async function eliminarMedicamento(medId: number) {
+    if (!window.confirm("¿Eliminar este medicamento y su recordatorio?")) return;
+    try {
+      await apiFetch(`/medicamentos/${medId}`, { method: "DELETE" });
+      if (usuario) await cargarDatos(usuario);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo eliminar el medicamento.");
+    }
+  }
+
+  async function quitarSintoma(sintomaId: number) {
+    if (!window.confirm("¿Eliminar este síntoma?")) return;
+    try {
+      await eliminarSintoma(sintomaId);
+      setSintomas((prev) => prev.filter((s) => s.id !== sintomaId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo eliminar el síntoma.");
     }
   }
 
@@ -242,6 +331,23 @@ export default function DashboardPage() {
       alert(err instanceof Error ? err.message : "No se pudo guardar");
     } finally {
       setGuardandoMed(false);
+    }
+  }
+
+  async function guardarSintoma(e: React.FormEvent) {
+    e.preventDefault();
+    if (!paciente) return;
+    setGuardandoSint(true);
+    try {
+      await registrarSintoma(paciente.id, sintDescripcion, sintIntensidad);
+      setSintDescripcion("");
+      setSintIntensidad("leve");
+      cerrarModal();
+      if (usuario) await cargarDatos(usuario);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo registrar el síntoma.");
+    } finally {
+      setGuardandoSint(false);
     }
   }
 
@@ -389,6 +495,12 @@ export default function DashboardPage() {
               Medicamentos
             </button>
             <button
+              onClick={() => setActiveModal("sintoma")}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10"
+            >
+              Síntomas
+            </button>
+            <button
               onClick={() => setActiveModal("circulo")}
               className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10"
             >
@@ -487,256 +599,258 @@ export default function DashboardPage() {
             </section>
           ) : (
             <>
-              <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur md:p-8">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                  <div className="max-w-3xl space-y-4">
-                    
-                    <div>
-                      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                        Hola, {usuario?.nombre}. Hoy tienes el cuidado bajo
-                        control.
-                      </h1>
-                      <p className="mt-3 max-w-2xl text-sm leading-7 text-brand-muted sm:text-base">
-                        Resumen del estado del paciente, próximas tomas, alertas
-                        activas y el rendimiento del círculo familiar.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid min-w-[260px] grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-brand-deep/50 p-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-brand-muted">
-                        Paciente
-                      </p>
-                      <p className="mt-1 text-lg font-semibold">
-                        {paciente.nombre}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-brand-muted">
-                        Medicamentos
-                      </p>
-                      <p className="mt-1 text-lg font-semibold">
-                        {medicamentos.length}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-brand-muted">
-                        Alertas
-                      </p>
-                      <p className="mt-1 text-lg font-semibold text-brand-accent">
-                        {alertas.length}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-brand-muted">
-                        Ranking
-                      </p>
-                      <p className="mt-1 text-lg font-semibold">
-                        {miPosicion ? `#${miPosicion}` : "—"}
-                      </p>
-                    </div>
-                  </div>
+              {/* Franja de métricas (sustituye a las tarjetas de resumen) */}
+              <section className="flex flex-col gap-5 border-b border-white/10 pb-6 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                    Hola, {usuario?.nombre}.
+                  </h1>
+                  <p className="mt-2 text-sm text-brand-muted">
+                    Cuidando a{" "}
+                    <span className="font-medium text-white">{paciente.nombre}</span>
+                  </p>
                 </div>
 
-                <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <article className="rounded-2xl border border-white/10 bg-brand-deep/45 p-5">
-                    <p className="text-sm text-brand-muted">Puntos del mes</p>
-                    <p className="mt-3 text-3xl font-semibold">
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-brand-muted">
+                      Puntos del mes
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold">
                       {puntos?.puntos_este_mes ?? 0}
+                      <span className="ml-2 text-xs font-normal text-brand-muted">
+                        {puntos?.puntos_totales ?? 0} total
+                      </span>
                     </p>
-                    <p className="mt-2 text-sm text-brand-muted">
-                      {puntos?.puntos_totales ?? 0} en total
+                  </div>
+                  <div className="hidden h-10 w-px bg-white/10 sm:block" />
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-brand-muted">
+                      Medicamentos
                     </p>
-                  </article>
-                  <article className="rounded-2xl border border-white/10 bg-brand-deep/45 p-5">
-                    <p className="text-sm text-brand-muted">
-                      Medicamentos activos
+                    <p className="mt-1 text-2xl font-semibold">{medicamentos.length}</p>
+                  </div>
+                  <div className="hidden h-10 w-px bg-white/10 sm:block" />
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-brand-muted">
+                      Alertas
                     </p>
-                    <p className="mt-3 text-3xl font-semibold">
-                      {medicamentos.length}
-                    </p>
-                  </article>
-                  <article className="rounded-2xl border border-white/10 bg-brand-deep/45 p-5">
-                    <p className="text-sm text-brand-muted">Alertas abiertas</p>
-                    <p className="mt-3 text-3xl font-semibold">
+                    <p className="mt-1 text-2xl font-semibold text-brand-accent">
                       {alertas.length}
                     </p>
-                  </article>
-                  <article className="rounded-2xl border border-white/10 bg-brand-deep/45 p-5">
-                    <p className="text-sm text-brand-muted">Ranking familiar</p>
-                    <p className="mt-3 text-3xl font-semibold">
+                  </div>
+                  <div className="hidden h-10 w-px bg-white/10 sm:block" />
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-brand-muted">
+                      Mi posición
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold">
                       {miPosicion ? `#${miPosicion}` : "—"}
                     </p>
-                  </article>
+                  </div>
                 </div>
               </section>
 
-              <section className="mt-6 grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-                <div className="space-y-6">
-                  <article className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-xl font-semibold">Próximas tomas</h2>
-                        <p className="mt-1 text-sm text-brand-muted">
-                          Basado en los medicamentos activos del paciente.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setActiveModal("medicamento")}
-                        className="rounded-xl bg-brand-accent px-4 py-2 text-sm font-semibold text-brand-deep hover:bg-white"
-                      >
-                        + Medicamento
-                      </button>
-                    </div>
-
-                    {siguienteToma && (
-                      <div className="mt-5 flex items-center gap-3 rounded-2xl border border-brand-accent/40 bg-brand-accent/10 px-4 py-3 text-sm">
-                        <span className="text-lg">⏰</span>
-                        <span>
-                          <span className="text-brand-muted">Próxima toma: </span>
-                          <span className="font-semibold text-brand-accent">
-                            {siguienteToma.medicamento.nombre} a las{" "}
-                            {formatHora12(siguienteToma.hora)}
-                          </span>
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="mt-5 grid gap-3">
-                      {medicamentos.length === 0 ? (
-                        <p className="text-sm text-brand-muted">
-                          No hay medicamentos registrados todavía.
-                        </p>
-                      ) : (
-                        medicamentos.map((med) => (
-                          <div
-                            key={med.id}
-                            className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div>
-                              <p className="text-sm text-brand-muted">
-                                {formatHora12(med.horaInicio)}
-                                {med.frecuenciaHoras
-                                  ? ` · cada ${med.frecuenciaHoras} h`
-                                  : ""}
-                              </p>
-                              <p className="mt-1 text-base font-semibold">
-                                {med.nombre}
-                              </p>
-                              <p className="text-sm text-brand-muted">
-                                {med.dosis}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex w-fit rounded-full bg-amber-400/15 px-3 py-1 text-xs font-medium text-amber-300">
-                                Pendiente
-                              </span>
-                              <button
-                                onClick={() => confirmarToma(med.id)}
-                                disabled={confirmandoToma === med.id}
-                                className="rounded-xl bg-brand-accent px-3 py-1.5 text-xs font-semibold text-brand-deep hover:bg-white disabled:opacity-50"
-                              >
-                                {confirmandoToma === med.id ? "..." : "Confirmar toma +10"}
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </article>
-
-                  <article className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h2 className="text-xl font-semibold">Alertas activas</h2>
-                        <p className="mt-1 text-sm text-brand-muted">
-                          Notificaciones de medicamento, citas y stock.
-                        </p>
-                      </div>
-                      {notificacionesSoportadas() &&
-                        (permisoNotif === "granted" ? (
-                          <span className="shrink-0 rounded-full bg-brand-accent/15 px-3 py-1 text-xs font-semibold text-brand-accent">
-                            Alarmas activas
-                          </span>
-                        ) : (
-                          <button
-                            onClick={activarNotificaciones}
-                            className="shrink-0 rounded-xl bg-brand-accent px-3 py-2 text-xs font-semibold text-brand-deep hover:bg-white"
-                          >
-                            Activar notificaciones
-                          </button>
-                        ))}
-                    </div>
-
-                    <div className="mt-5 space-y-3">
-                      {alertas.length === 0 ? (
-                        <p className="text-sm text-brand-muted">
-                          No tienes alertas activas.
-                        </p>
-                      ) : (
-                        alertas.map((alerta) => (
-                          <div
-                            key={alerta.id}
-                            className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-4 text-sm leading-6 text-brand-muted"
-                          >
-                            <span>{alerta.mensaje}</span>
-                            <button
-                              onClick={() => marcarAlertaComoLeida(alerta.id)}
-                              className="shrink-0 rounded-xl border border-white/10 px-3 py-1.5 text-xs font-medium text-white hover:border-brand-accent hover:text-brand-accent"
-                            >
-                              Marcar leída
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </article>
+              {/* Próximas tomas */}
+              <section className="mt-8">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold">Próximas tomas</h2>
+                  <button
+                    onClick={() => setActiveModal("medicamento")}
+                    className="rounded-xl bg-brand-accent px-4 py-2 text-sm font-semibold text-brand-deep hover:bg-white"
+                  >
+                    + Medicamento
+                  </button>
                 </div>
 
-                <div className="space-y-6">
-                  <article className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-xl font-semibold">Círculo familiar</h2>
-                        <p className="mt-1 text-sm text-brand-muted">
-                          Miembros del círculo y su ranking.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setActiveModal("circulo")}
-                        className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium hover:border-brand-accent hover:text-brand-accent"
-                      >
-                        Gestionar
-                      </button>
-                    </div>
+                {siguienteToma && (
+                  <p className="mt-3 text-sm">
+                    <span className="text-brand-muted">⏰ Próxima toma: </span>
+                    <span className="font-semibold text-brand-accent">
+                      {siguienteToma.medicamento.nombre} a las{" "}
+                      {formatHora12(siguienteToma.hora)}
+                    </span>
+                  </p>
+                )}
 
-                    <div className="mt-5 space-y-3">
-                      {ranking.length === 0 ? (
-                        <p className="text-sm text-brand-muted">
-                          Aún no hay miembros con puntos.
-                        </p>
-                      ) : (
-                        ranking.map((item) => (
-                          <div
-                            key={item.usuario_id}
-                            className="flex items-center justify-between rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-4"
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent/15 text-sm font-semibold text-brand-accent">
-                                {item.posicion}
-                              </span>
-                              <p className="font-medium">{item.nombre}</p>
-                            </div>
-                            <p className="text-sm font-semibold text-white">
-                              {item.puntos} pts
+                <div className="mt-4 divide-y divide-white/5 border-y border-white/10">
+                  {medicamentos.length === 0 ? (
+                    <p className="py-4 text-sm text-brand-muted">
+                      No hay medicamentos registrados todavía.
+                    </p>
+                  ) : (
+                    medicamentos.map((med) => (
+                      <div
+                        key={med.id}
+                        className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="flex items-baseline gap-4">
+                          <span className="w-24 shrink-0 text-sm font-semibold text-brand-accent">
+                            {formatHora12(med.horaInicio)}
+                          </span>
+                          <div>
+                            <p className="font-medium">{med.nombre}</p>
+                            <p className="text-sm text-brand-muted">
+                              {med.dosis}
+                              {med.frecuenciaHoras
+                                ? ` · cada ${med.frecuenciaHoras} h`
+                                : ""}
                             </p>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </article>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => confirmarToma(med.id)}
+                            disabled={confirmandoToma === med.id}
+                            className="rounded-xl bg-brand-accent px-3 py-1.5 text-xs font-semibold text-brand-deep hover:bg-white disabled:opacity-50"
+                          >
+                            {confirmandoToma === med.id ? "..." : "Confirmar +18"}
+                          </button>
+                          <button
+                            onClick={() => eliminarMedicamento(med.id)}
+                            className="rounded-xl border border-white/10 px-2.5 py-1.5 text-xs text-brand-muted hover:border-red-400 hover:text-red-400"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
 
+              {/* Alertas activas */}
+              <section className="mt-8">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold">Alertas activas</h2>
+                  {notificacionesSoportadas() &&
+                    (permisoNotif === "granted" ? (
+                      <span className="rounded-full bg-brand-accent/15 px-3 py-1 text-xs font-semibold text-brand-accent">
+                        Alarmas activas
+                      </span>
+                    ) : (
+                      <button
+                        onClick={activarNotificaciones}
+                        className="rounded-xl bg-brand-accent px-3 py-2 text-xs font-semibold text-brand-deep hover:bg-white"
+                      >
+                        Activar notificaciones
+                      </button>
+                    ))}
+                </div>
+
+                <div className="mt-4 divide-y divide-white/5 border-y border-white/10">
+                  {alertas.length === 0 ? (
+                    <p className="py-4 text-sm text-brand-muted">
+                      No tienes alertas activas.
+                    </p>
+                  ) : (
+                    alertas.map((alerta) => (
+                      <div
+                        key={alerta.id}
+                        className="flex items-center justify-between gap-3 py-4 text-sm text-brand-muted"
+                      >
+                        <span>{alerta.mensaje}</span>
+                        <button
+                          onClick={() => marcarAlertaComoLeida(alerta.id)}
+                          className="shrink-0 rounded-xl border border-white/10 px-3 py-1.5 text-xs font-medium text-white hover:border-brand-accent hover:text-brand-accent"
+                        >
+                          Marcar leída
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              {/* Círculo familiar + Síntomas recientes */}
+              <section className="mt-8 grid gap-10 lg:grid-cols-2">
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-lg font-semibold">Círculo familiar</h2>
+                    <button
+                      onClick={() => setActiveModal("circulo")}
+                      className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium hover:border-brand-accent hover:text-brand-accent"
+                    >
+                      Gestionar
+                    </button>
+                  </div>
+                  <div className="mt-4 divide-y divide-white/5 border-y border-white/10">
+                    {ranking.length === 0 ? (
+                      <p className="py-4 text-sm text-brand-muted">
+                        Aún no hay miembros con puntos.
+                      </p>
+                    ) : (
+                      ranking.map((item) => (
+                        <div
+                          key={item.usuario_id}
+                          className="flex items-center justify-between py-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-accent/15 text-xs font-semibold text-brand-accent">
+                              {item.posicion}
+                            </span>
+                            <p className="font-medium">{item.nombre}</p>
+                          </div>
+                          <p className="text-sm font-semibold">{item.puntos} pts</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-lg font-semibold">Síntomas recientes</h2>
+                    <button
+                      onClick={() => setActiveModal("sintoma")}
+                      className="rounded-xl bg-brand-accent px-3 py-2 text-sm font-semibold text-brand-deep hover:bg-white"
+                    >
+                      + Síntoma
+                    </button>
+                  </div>
+                  <div className="mt-4 divide-y divide-white/5 border-y border-white/10">
+                    {sintomas.length === 0 ? (
+                      <p className="py-4 text-sm text-brand-muted">
+                        No hay síntomas registrados todavía.
+                      </p>
+                    ) : (
+                      sintomas.slice(0, 5).map((s) => (
+                        <div
+                          key={s.id}
+                          className="flex items-start justify-between gap-3 py-3"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium">{s.descripcion}</p>
+                              {s.intensidad && (
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                                    s.intensidad === "severa"
+                                      ? "bg-red-400/15 text-red-300"
+                                      : s.intensidad === "moderada"
+                                      ? "bg-amber-400/15 text-amber-300"
+                                      : "bg-brand-accent/15 text-brand-accent"
+                                  }`}
+                                >
+                                  {s.intensidad}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs text-brand-muted">
+                              {new Date(s.fechaHora).toLocaleString()}
+                              {s.registradoPor ? ` · ${s.registradoPor.nombre}` : ""}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => quitarSintoma(s.id)}
+                            className="shrink-0 rounded-xl border border-white/10 px-2.5 py-1 text-xs text-brand-muted hover:border-red-400 hover:text-red-400"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </section>
             </>
@@ -935,6 +1049,83 @@ export default function DashboardPage() {
                     className="rounded-2xl bg-brand-accent px-5 py-3 text-sm font-semibold text-brand-deep hover:bg-white disabled:opacity-50"
                   >
                     {guardandoMed ? "Guardando..." : "Guardar medicamento"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal registrar síntoma */}
+      {activeModal === "sintoma" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#0f2539] p-6 shadow-2xl shadow-black/30">
+            <div className="flex items-start justify-between gap-4">
+              <h3 className="text-2xl font-semibold">Registrar síntoma</h3>
+              <button
+                onClick={cerrarModal}
+                className="rounded-full border border-white/10 px-3 py-1 text-sm text-brand-muted hover:border-white/20 hover:text-white"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {!paciente ? (
+              <p className="mt-6 text-sm text-brand-muted">
+                Primero crea un paciente para poder registrar síntomas.
+              </p>
+            ) : (
+              <form onSubmit={guardarSintoma} className="mt-6 grid gap-4">
+                <p className="text-sm text-brand-muted">
+                  Anota un síntoma de {paciente.nombre}. Registrarlo suma puntos
+                  a tu círculo familiar.
+                </p>
+                <label className="space-y-2">
+                  <span className="text-sm text-brand-muted">Descripción</span>
+                  <textarea
+                    required
+                    rows={3}
+                    value={sintDescripcion}
+                    onChange={(e) => setSintDescripcion(e.target.value)}
+                    placeholder="Dolor de cabeza, fiebre, mareo..."
+                    className={inputClass}
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm text-brand-muted">Intensidad</span>
+                  <select
+                    value={sintIntensidad}
+                    onChange={(e) =>
+                      setSintIntensidad(e.target.value as IntensidadSintoma)
+                    }
+                    className={inputClass}
+                  >
+                    <option className="bg-slate-900" value="leve">
+                      Leve
+                    </option>
+                    <option className="bg-slate-900" value="moderada">
+                      Moderada
+                    </option>
+                    <option className="bg-slate-900" value="severa">
+                      Severa
+                    </option>
+                  </select>
+                </label>
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={cerrarModal}
+                    className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-medium text-white hover:border-white/20"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={guardandoSint}
+                    className="rounded-2xl bg-brand-accent px-5 py-3 text-sm font-semibold text-brand-deep hover:bg-white disabled:opacity-50"
+                  >
+                    {guardandoSint ? "Guardando..." : "Registrar síntoma"}
                   </button>
                 </div>
               </form>

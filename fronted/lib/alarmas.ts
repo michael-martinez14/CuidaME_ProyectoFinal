@@ -93,6 +93,17 @@ export function proximaToma(
   return mejor ? { medicamento: mejor.medicamento, hora: minutosAHora(mejor.minutos) } : null;
 }
 
+// Última toma del día cuya hora ya pasó (o es justo ahora), o null si la
+// primera toma aún no llega. Sirve para mostrar la alerta "es hora de...".
+export function tomaVencida(
+  med: MedicamentoAlarma,
+  ahoraMinutos: number
+): { hora: string } | null {
+  const pasadas = horariosDelDia(med).filter((t) => t <= ahoraMinutos);
+  if (pasadas.length === 0) return null;
+  return { hora: minutosAHora(Math.max(...pasadas)) };
+}
+
 function leerDisparadas(): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {

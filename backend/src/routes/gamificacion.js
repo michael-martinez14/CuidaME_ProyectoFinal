@@ -47,6 +47,33 @@ router.get("/puntos/:usuario_id", async (req, res) => {
   }
 });
 
+// GET /gamificacion/historial/:usuario_id  -> historial de puntos del usuario
+router.get("/historial/:usuario_id", async (req, res) => {
+  try {
+    const usuarioId = Number(req.params.usuario_id);
+    if (Number.isNaN(usuarioId)) {
+      return res.status(400).json({ error: "Datos inválidos", detalle: "usuario_id no válido" });
+    }
+
+    const acciones = await prisma.accionPuntos.findMany({
+      where: { usuarioId },
+      orderBy: { creadoEn: "desc" },
+    });
+
+    const historial = acciones.map((a) => ({
+      id: a.id,
+      tipo: a.tipo,
+      puntos: a.puntos,
+      creado_en: a.creadoEn,
+    }));
+
+    res.json(historial);
+  } catch (err) {
+    console.error("Error en GET /gamificacion/historial/:usuario_id:", err);
+    res.status(500).json({ error: "Error interno", detalle: "No se pudo obtener el historial" });
+  }
+});
+
 // GET /gamificacion/ranking/:circulo_id  -> ranking del círculo familiar
 router.get("/ranking/:circulo_id", async (req, res) => {
   try {

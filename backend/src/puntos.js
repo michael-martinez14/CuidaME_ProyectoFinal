@@ -6,9 +6,8 @@ const prisma = require("./prismaClient");
 
 // Puntos que otorga cada tipo de acción.
 const PUNTOS_POR_ACCION = {
-  confirmar_toma: 10, // el usuario confirma que una toma fue realizada
-  registrar_sintoma: 5, // (no disponible aún en el backend)
-  agendar_cita: 8, // (no disponible aún en el backend)
+  confirmar_toma: 18, // el usuario confirma que una toma fue realizada
+  registrar_sintoma: 5, // se registra un síntoma del paciente
   invitar_familiar: 15, // al ACEPTAR la invitación se premia a quien invitó
 };
 

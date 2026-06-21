@@ -137,6 +137,11 @@ router.delete("/:id", async (req, res) => {
 
     await prisma.medicamento.delete({ where: { id } });
 
+    // Limpia las alertas (recordatorios de toma) asociadas al medicamento.
+    await prisma.alerta.deleteMany({
+      where: { tipo: "medicamento", referenciaId: id },
+    });
+
     res.json({ mensaje: "Medicamento eliminado correctamente" });
   } catch (err) {
     console.error("Error en DELETE /medicamentos/:id:", err);

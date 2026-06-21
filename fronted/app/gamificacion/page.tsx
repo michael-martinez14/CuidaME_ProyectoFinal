@@ -10,6 +10,7 @@ import {
   obtenerRanking,
   obtenerBadges,
   obtenerAlertas,
+  obtenerHistorial,
   marcarAlertaLeida,
   apiFetch,
   PUNTOS_POR_ACCION,
@@ -19,6 +20,7 @@ import {
   type Badge,
   type Alerta,
   type TipoAccion,
+  type AccionHistorial,
 } from "@/lib/api";
 import {
   useAlarmasMedicamentos,
@@ -52,14 +54,17 @@ const ACCIONES: { tipo: TipoAccion; titulo: string; detalle: string }[] = [
   {
     tipo: "registrar_sintoma",
     titulo: "Registrar síntoma",
-    detalle: "Se otorgarán al anotar un síntoma del paciente (próximamente).",
-  },
-  {
-    tipo: "agendar_cita",
-    titulo: "Agendar cita",
-    detalle: "Se otorgarán al programar una cita médica (próximamente).",
+    detalle: "Se otorgan a quien anota un síntoma del paciente desde el panel.",
   },
 ];
+
+// Etiqueta legible para cada tipo de acción del historial.
+const ETIQUETAS_ACCION: Record<string, string> = {
+  confirmar_toma: "Confirmar toma",
+  registrar_sintoma: "Registrar síntoma",
+  agendar_cita: "Agendar cita",
+  invitar_familiar: "Invitar familiar",
+};
 
 export default function GamificacionPage() {
   const router = useRouter();
@@ -73,6 +78,9 @@ export default function GamificacionPage() {
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [cargando, setCargando] = useState(true);
   const [aviso, setAviso] = useState("");
+  const [historial, setHistorial] = useState<AccionHistorial[]>([]);
+  const [mostrarHistorial, setMostrarHistorial] = useState(false);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [permiso, setPermiso] = useState<NotificationPermission>("default");
 
   const cargarDatos = useCallback(async (u: Usuario) => {
@@ -138,6 +146,21 @@ export default function GamificacionPage() {
     }
   }
 
+  async function abrirHistorial() {
+    if (!usuario) return;
+    setMostrarHistorial(true);
+    setCargandoHistorial(true);
+    try {
+      const h = await obtenerHistorial(usuario.id);
+      setHistorial(h);
+    } catch (err) {
+      setAviso(err instanceof Error ? err.message : "No se pudo cargar el historial.");
+      setMostrarHistorial(false);
+    } finally {
+      setCargandoHistorial(false);
+    }
+  }
+
   async function marcarLeida(id: number) {
     try {
       await marcarAlertaLeida(id);
@@ -162,12 +185,20 @@ export default function GamificacionPage() {
           <p className="text-xs uppercase tracking-[0.24em] text-brand-muted">CuidaME</p>
           <h1 className="text-xl font-semibold">Gamificación y notificaciones</h1>
         </div>
-        <Link
-          href="/dashboard"
-          className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium hover:border-brand-accent hover:text-brand-accent"
-        >
-          ← Volver al panel
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={abrirHistorial}
+            className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium hover:border-brand-accent hover:text-brand-accent"
+          >
+            Historial de puntos
+          </button>
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium hover:border-brand-accent hover:text-brand-accent"
+          >
+            ← Volver al panel
+          </Link>
+        </div>
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
@@ -360,6 +391,57 @@ export default function GamificacionPage() {
           </>
         )}
       </main>
+
+      {/* Ventana: historial de puntos del usuario */}
+      {mostrarHistorial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+          <div className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-3xl border border-white/10 bg-[#0f2539] p-6 shadow-2xl shadow-black/30">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-2xl font-semibold">Historial de puntos</h3>
+                <p className="mt-1 text-sm text-brand-muted">
+                  Puntos obtenidos por {usuario?.nombre}.
+                </p>
+              </div>
+              <button
+                onClick={() => setMostrarHistorial(false)}
+                className="rounded-full border border-white/10 px-3 py-1 text-sm text-brand-muted hover:border-white/20 hover:text-white"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-5 flex-1 space-y-3 overflow-y-auto">
+              {cargandoHistorial ? (
+                <p className="text-sm text-brand-muted">Cargando historial...</p>
+              ) : historial.length === 0 ? (
+                <p className="text-sm text-brand-muted">
+                  Todavía no has ganado puntos.
+                </p>
+              ) : (
+                historial.map((h) => (
+                  <div
+                    key={h.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {ETIQUETAS_ACCION[h.tipo] || h.tipo}
+                      </p>
+                      <p className="text-xs text-brand-muted">
+                        {new Date(h.creado_en).toLocaleString()}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-brand-accent/15 px-3 py-1 text-sm font-semibold text-brand-accent">
+                      +{h.puntos}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
