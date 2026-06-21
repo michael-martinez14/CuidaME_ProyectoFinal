@@ -52,6 +52,18 @@ function minutosAHora(min: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+// Convierte una hora "HH:mm" (24h) a formato de 12h con AM/PM, ej. "8:00 AM".
+// Si la hora es inválida la devuelve tal cual.
+export function formatHora12(hora: string): string {
+  const min = horaAMinutos(hora);
+  if (min === null) return hora;
+  const m = min % 60;
+  const h24 = Math.floor(min / 60);
+  const sufijo = h24 < 12 ? "AM" : "PM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${sufijo}`;
+}
+
 // Todas las horas de toma de un medicamento dentro de un día (en minutos).
 export function horariosDelDia(med: MedicamentoAlarma): number[] {
   const inicio = horaAMinutos(med.horaInicio);

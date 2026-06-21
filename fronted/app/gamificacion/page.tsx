@@ -10,7 +10,6 @@ import {
   obtenerRanking,
   obtenerBadges,
   obtenerAlertas,
-  registrarAccion,
   marcarAlertaLeida,
   apiFetch,
   PUNTOS_POR_ACCION,
@@ -27,6 +26,7 @@ import {
   permisoNotificaciones,
   notificacionesSoportadas,
   proximaToma,
+  formatHora12,
   type MedicamentoAlarma,
 } from "@/lib/alarmas";
 
@@ -36,11 +36,29 @@ type Paciente = {
   circulo: { id: number; nombre: string | null } | null;
 };
 
+// Catálogo informativo: cómo se gana cada tipo de punto. Los puntos NO se
+// asignan a mano desde aquí; se otorgan automáticamente al realizar la acción.
 const ACCIONES: { tipo: TipoAccion; titulo: string; detalle: string }[] = [
-  { tipo: "confirmar_toma", titulo: "Confirmar toma", detalle: "Marca una toma de medicamento como realizada." },
-  { tipo: "registrar_sintoma", titulo: "Registrar síntoma", detalle: "Anota un síntoma del paciente." },
-  { tipo: "agendar_cita", titulo: "Agendar cita", detalle: "Programa una cita médica." },
-  { tipo: "invitar_familiar", titulo: "Invitar familiar", detalle: "Suma a un cuidador al círculo." },
+  {
+    tipo: "confirmar_toma",
+    titulo: "Confirmar toma",
+    detalle: "Se otorgan a quien marca una toma como realizada desde el panel.",
+  },
+  {
+    tipo: "invitar_familiar",
+    titulo: "Invitar familiar",
+    detalle: "Se otorgan a quien invitó cuando el familiar acepta entrar al círculo.",
+  },
+  {
+    tipo: "registrar_sintoma",
+    titulo: "Registrar síntoma",
+    detalle: "Se otorgarán al anotar un síntoma del paciente (próximamente).",
+  },
+  {
+    tipo: "agendar_cita",
+    titulo: "Agendar cita",
+    detalle: "Se otorgarán al programar una cita médica (próximamente).",
+  },
 ];
 
 export default function GamificacionPage() {
@@ -54,7 +72,6 @@ export default function GamificacionPage() {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [accionPendiente, setAccionPendiente] = useState<TipoAccion | null>(null);
   const [aviso, setAviso] = useState("");
   const [permiso, setPermiso] = useState<NotificationPermission>("default");
 
@@ -121,25 +138,6 @@ export default function GamificacionPage() {
     }
   }
 
-  async function ejecutarAccion(tipo: TipoAccion) {
-    if (!usuario) return;
-    setAccionPendiente(tipo);
-    setAviso("");
-    try {
-      const res = await registrarAccion(usuario.id, tipo);
-      setAviso(`${res.mensaje} (+${res.puntos_sumados} pts, total ${res.puntos_totales}).`);
-      const [pts] = await Promise.all([obtenerPuntos(usuario.id)]);
-      setPuntos(pts);
-      if (paciente?.circulo) {
-        setRanking(await obtenerRanking(paciente.circulo.id));
-      }
-    } catch (err) {
-      setAviso(err instanceof Error ? err.message : "No se pudo registrar la acción.");
-    } finally {
-      setAccionPendiente(null);
-    }
-  }
-
   async function marcarLeida(id: number) {
     try {
       await marcarAlertaLeida(id);
@@ -202,19 +200,18 @@ export default function GamificacionPage() {
             </section>
 
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              {/* Acciones que suman puntos */}
+              {/* Cómo se ganan los puntos (solo informativo) */}
               <section className={card}>
-                <h2 className="text-xl font-semibold">Sumar puntos</h2>
+                <h2 className="text-xl font-semibold">¿Cómo ganar puntos?</h2>
                 <p className="mt-1 text-sm text-brand-muted">
-                  Cada acción de cuidado registrada suma puntos al círculo familiar.
+                  Los puntos se suman solos al realizar cada acción de cuidado. No
+                  se pueden agregar manualmente.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {ACCIONES.map((a) => (
-                    <button
+                    <div
                       key={a.tipo}
-                      onClick={() => ejecutarAccion(a.tipo)}
-                      disabled={accionPendiente !== null}
-                      className="flex flex-col items-start gap-1 rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-4 text-left transition-colors hover:border-brand-accent disabled:opacity-50"
+                      className="flex flex-col items-start gap-1 rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-4 text-left"
                     >
                       <span className="flex w-full items-center justify-between gap-2">
                         <span className="font-medium">{a.titulo}</span>
@@ -222,10 +219,8 @@ export default function GamificacionPage() {
                           +{PUNTOS_POR_ACCION[a.tipo]}
                         </span>
                       </span>
-                      <span className="text-xs text-brand-muted">
-                        {accionPendiente === a.tipo ? "Registrando..." : a.detalle}
-                      </span>
-                    </button>
+                      <span className="text-xs text-brand-muted">{a.detalle}</span>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -328,7 +323,7 @@ export default function GamificacionPage() {
                 <div className="mt-5 rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-3 text-sm">
                   <span className="text-brand-muted">Próxima toma: </span>
                   <span className="font-medium">
-                    {siguiente.medicamento.nombre} a las {siguiente.hora}
+                    {siguiente.medicamento.nombre} a las {formatHora12(siguiente.hora)}
                   </span>
                 </div>
               )}

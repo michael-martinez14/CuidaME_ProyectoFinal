@@ -17,6 +17,8 @@ import {
   solicitarPermisoNotificaciones,
   permisoNotificaciones,
   notificacionesSoportadas,
+  proximaToma,
+  formatHora12,
 } from "@/lib/alarmas";
 
 type Circulo = { id: number; nombre: string | null };
@@ -353,6 +355,13 @@ export default function DashboardPage() {
     ? ranking.find((r) => r.usuario_id === usuario.id)?.posicion
     : undefined;
 
+  // Próxima toma del día según la hora asignada a cada medicamento.
+  const ahora = new Date();
+  const siguienteToma = proximaToma(
+    medicamentos,
+    ahora.getHours() * 60 + ahora.getMinutes()
+  );
+
   const inputClass =
     "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-brand-accent";
 
@@ -581,6 +590,19 @@ export default function DashboardPage() {
                       </button>
                     </div>
 
+                    {siguienteToma && (
+                      <div className="mt-5 flex items-center gap-3 rounded-2xl border border-brand-accent/40 bg-brand-accent/10 px-4 py-3 text-sm">
+                        <span className="text-lg">⏰</span>
+                        <span>
+                          <span className="text-brand-muted">Próxima toma: </span>
+                          <span className="font-semibold text-brand-accent">
+                            {siguienteToma.medicamento.nombre} a las{" "}
+                            {formatHora12(siguienteToma.hora)}
+                          </span>
+                        </span>
+                      </div>
+                    )}
+
                     <div className="mt-5 grid gap-3">
                       {medicamentos.length === 0 ? (
                         <p className="text-sm text-brand-muted">
@@ -594,7 +616,10 @@ export default function DashboardPage() {
                           >
                             <div>
                               <p className="text-sm text-brand-muted">
-                                {med.horaInicio}
+                                {formatHora12(med.horaInicio)}
+                                {med.frecuenciaHoras
+                                  ? ` · cada ${med.frecuenciaHoras} h`
+                                  : ""}
                               </p>
                               <p className="mt-1 text-base font-semibold">
                                 {med.nombre}
@@ -861,6 +886,9 @@ export default function DashboardPage() {
                     onChange={(e) => setMedHora(e.target.value)}
                     className={inputClass}
                   />
+                  <span className="block text-xs text-brand-accent">
+                    {formatHora12(medHora)}
+                  </span>
                 </label>
                 <label className="space-y-2">
                   <span className="text-sm text-brand-muted">Frecuencia</span>

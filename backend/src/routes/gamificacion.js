@@ -1,16 +1,9 @@
 const express = require("express");
 const prisma = require("../prismaClient");
 const authMiddleware = require("../authMiddleware");
+const { ACCIONES_AUTOSERVICIO, otorgarPuntos } = require("../puntos");
 
 const router = express.Router();
-
-// Puntos que otorga cada tipo de acción.
-const PUNTOS_POR_ACCION = {
-  confirmar_toma: 10,
-  registrar_sintoma: 5,
-  agendar_cita: 8,
-  invitar_familiar: 15,
-};
 
 router.use(authMiddleware);
 
@@ -140,39 +133,33 @@ router.get("/badges/:usuario_id", async (req, res) => {
   }
 });
 
-// POST /gamificacion/accion  -> registrar acción y sumar puntos
+// POST /gamificacion/accion  -> registrar una acción de autoservicio y sumar
+// puntos. Los puntos SIEMPRE se otorgan al usuario autenticado (no se pueden
+// asignar a mano a otra persona) y solo se aceptan acciones de autoservicio
+// como "confirmar_toma". Las demás (invitar familiar, etc.) se premian de
+// forma automática desde su propio flujo.
 router.post("/accion", async (req, res) => {
   try {
-    const { usuario_id, tipo_accion, referencia_id } = req.body;
+    const { tipo_accion } = req.body;
 
-    if (!usuario_id || !tipo_accion) {
+    if (!tipo_accion) {
       return res.status(400).json({
         error: "Datos inválidos",
-        detalle: "usuario_id y tipo_accion son requeridos",
+        detalle: "tipo_accion es requerido",
       });
     }
-    if (!PUNTOS_POR_ACCION[tipo_accion]) {
-      return res.status(400).json({ error: "Datos inválidos", detalle: "tipo_accion no válido" });
+    if (!ACCIONES_AUTOSERVICIO.includes(tipo_accion)) {
+      return res.status(400).json({
+        error: "Datos inválidos",
+        detalle: "Esta acción otorga puntos automáticamente; no se puede registrar a mano",
+      });
     }
 
-    const usuario = await prisma.usuario.findUnique({ where: { id: Number(usuario_id) } });
-    if (!usuario) {
-      return res.status(404).json({ error: "Recurso no encontrado", detalle: "El usuario no existe" });
-    }
-
-    const puntos = PUNTOS_POR_ACCION[tipo_accion];
-
-    await prisma.accionPuntos.create({
-      data: {
-        usuarioId: Number(usuario_id),
-        tipo: tipo_accion,
-        puntos,
-      },
-    });
+    const puntos = await otorgarPuntos({ usuarioId: req.usuarioId, tipo: tipo_accion });
 
     const total = await prisma.accionPuntos.aggregate({
       _sum: { puntos: true },
-      where: { usuarioId: Number(usuario_id) },
+      where: { usuarioId: req.usuarioId },
     });
 
     res.json({

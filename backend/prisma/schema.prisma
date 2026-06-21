@@ -116,6 +116,9 @@ model MiembroCirculo {
   estado EstadoMiembro @default(pendiente)
   puntos Int           @default(0)
 
+  // Usuario que envió la invitación. Al aceptarla se le otorgan puntos.
+  invitadoPorId Int?
+
   usuarioId Int
   usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   circuloId Int
