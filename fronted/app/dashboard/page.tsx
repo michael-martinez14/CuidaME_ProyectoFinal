@@ -157,12 +157,6 @@ export default function DashboardPage() {
     },
   ]);
 
-  const quickQuestions = [
-    "¿Cuál es la próxima toma pendiente?",
-    "Necesito configurar un recordatorio",
-    "Hay un síntoma que quiero reportar",
-  ];
-
   const cargarDatos = useCallback(async (u: Usuario) => {
     setCargando(true);
     try {
@@ -522,7 +516,7 @@ export default function DashboardPage() {
               href="/gamificacion"
               className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10"
             >
-              Gamificación
+              Mis Puntos
             </Link>
             <button
               onClick={() => setActiveModal("chatbot")}
@@ -666,7 +660,7 @@ export default function DashboardPage() {
 
                 {siguienteToma && (
                   <p className="mt-3 text-sm">
-                    <span className="text-brand-muted">⏰ Próxima toma: </span>
+                    <span className="text-brand-muted">Próxima toma: </span>
                     <span className="font-semibold text-brand-accent">
                       {siguienteToma.medicamento.nombre} a las{" "}
                       {formatHora12(siguienteToma.hora)}
@@ -1337,23 +1331,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-
-            <div className="space-y-2 pt-2">
-              <p className="text-xs uppercase tracking-[0.22em] text-brand-muted">
-                Preguntas sugeridas
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {quickQuestions.map((question) => (
-                  <button
-                    key={question}
-                    onClick={() => setChatInput(question)}
-                    className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-left text-xs text-white hover:border-brand-accent hover:text-brand-accent"
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           <form onSubmit={enviarChat} className="border-t border-white/10 p-3">

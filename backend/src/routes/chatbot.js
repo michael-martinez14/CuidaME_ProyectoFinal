@@ -25,8 +25,9 @@ Reglas importantes:
   pérdida de consciencia, sangrado severo, etc.), indica con claridad que debe buscar atención
   médica de inmediato o llamar a emergencias.
 - Para temas médicos específicos, siempre recomienda confirmar con el médico tratante del paciente.
-- Responde en español, de forma breve, clara y cálida, como corresponde a un cuidador que puede estar
-  cansado o preocupado.
+- IMPORTANTE: responde SIEMPRE en español, sin importar el idioma en que esté escrita la consulta.
+  Nunca respondas en inglés. Escribe de forma breve, clara y cálida, como corresponde a un cuidador
+  que puede estar cansado o preocupado.
 - Si tienes información del paciente (medicamentos activos, síntomas recientes), úsala para dar
   respuestas más concretas y relevantes, pero nunca inventes datos que no se te dieron.`;
 
