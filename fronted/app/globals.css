@@ -30,3 +30,37 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* ===== Scrollbar personalizado con la paleta CuidaME ===== */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-accent) var(--brand-darker);
+}
+
+/* Chrome, Edge, Safari (WebKit) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--brand-darker);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--brand-dark), var(--brand-navy));
+  border-radius: 9999px;
+  /* margen interior para que el thumb no toque los bordes del track */
+  border: 2px solid var(--brand-darker);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(var(--brand-accent), var(--brand-dark));
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--brand-darker);
+}
