@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ChatMarkdown from "@/components/ChatMarkdown";
 import {
   apiFetch,
   obtenerToken,
@@ -1332,7 +1333,7 @@ export default function DashboardPage() {
                       : "bg-brand-accent text-brand-deep"
                   }`}
                 >
-                  {message.text}
+                  <ChatMarkdown texto={message.text} />
                 </div>
               </div>
             ))}
