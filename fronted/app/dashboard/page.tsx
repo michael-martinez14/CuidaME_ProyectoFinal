@@ -1,14 +1,23 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   apiFetch,
   obtenerToken,
   obtenerUsuario,
   cerrarSesion,
+  registrarAccion,
+  marcarAlertaLeida,
   type Usuario,
 } from "@/lib/api";
+import {
+  useAlarmasMedicamentos,
+  solicitarPermisoNotificaciones,
+  permisoNotificaciones,
+  notificacionesSoportadas,
+} from "@/lib/alarmas";
 
 type Circulo = { id: number; nombre: string | null };
 type Paciente = {
@@ -22,6 +31,7 @@ type Medicamento = {
   nombre: string;
   dosis: string;
   horaInicio: string;
+  frecuenciaHoras: number;
   activo: boolean;
 };
 type Alerta = { id: number; tipo: string; mensaje: string };
@@ -61,6 +71,8 @@ export default function DashboardPage() {
   const [invitaciones, setInvitaciones] = useState<Invitacion[]>([]);
   const [puntos, setPuntos] = useState<Puntos | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [permisoNotif, setPermisoNotif] = useState<NotificationPermission>("default");
+  const [confirmandoToma, setConfirmandoToma] = useState<number | null>(null);
 
   const [activeModal, setActiveModal] = useState<
     "medicamento" | "chatbot" | "paciente" | "circulo" | "invitaciones" | null
@@ -157,8 +169,40 @@ export default function DashboardPage() {
       return;
     }
     setUsuario(u);
+    setPermisoNotif(permisoNotificaciones());
     cargarDatos(u);
   }, [router, cargarDatos]);
+
+  // Alarmas: dispara notificaciones del navegador a la hora de cada toma.
+  useAlarmasMedicamentos(medicamentos, { activo: permisoNotif === "granted" });
+
+  async function activarNotificaciones() {
+    const resultado = await solicitarPermisoNotificaciones();
+    setPermisoNotif(resultado);
+  }
+
+  // Confirmar una toma de medicamento suma puntos al usuario.
+  async function confirmarToma(medId: number) {
+    if (!usuario) return;
+    setConfirmandoToma(medId);
+    try {
+      await registrarAccion(usuario.id, "confirmar_toma", medId);
+      await cargarDatos(usuario);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo confirmar la toma.");
+    } finally {
+      setConfirmandoToma(null);
+    }
+  }
+
+  async function marcarAlertaComoLeida(alertaId: number) {
+    try {
+      await marcarAlertaLeida(alertaId);
+      setAlertas((prev) => prev.filter((a) => a.id !== alertaId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo actualizar la alerta.");
+    }
+  }
 
   const cerrarModal = () => {
     setActiveModal(null);
@@ -352,6 +396,12 @@ export default function DashboardPage() {
                 </span>
               )}
             </button>
+            <Link
+              href="/gamificacion"
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10"
+            >
+              Gamificación
+            </Link>
             <button
               onClick={() => setActiveModal("chatbot")}
               className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-white/10"
@@ -553,9 +603,18 @@ export default function DashboardPage() {
                                 {med.dosis}
                               </p>
                             </div>
-                            <span className="inline-flex w-fit rounded-full bg-amber-400/15 px-3 py-1 text-xs font-medium text-amber-300">
-                              Pendiente
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex w-fit rounded-full bg-amber-400/15 px-3 py-1 text-xs font-medium text-amber-300">
+                                Pendiente
+                              </span>
+                              <button
+                                onClick={() => confirmarToma(med.id)}
+                                disabled={confirmandoToma === med.id}
+                                className="rounded-xl bg-brand-accent px-3 py-1.5 text-xs font-semibold text-brand-deep hover:bg-white disabled:opacity-50"
+                              >
+                                {confirmandoToma === med.id ? "..." : "Confirmar toma +10"}
+                              </button>
+                            </div>
                           </div>
                         ))
                       )}
@@ -563,10 +622,27 @@ export default function DashboardPage() {
                   </article>
 
                   <article className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                    <h2 className="text-xl font-semibold">Alertas activas</h2>
-                    <p className="mt-1 text-sm text-brand-muted">
-                      Notificaciones de medicamento, citas y stock.
-                    </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-xl font-semibold">Alertas activas</h2>
+                        <p className="mt-1 text-sm text-brand-muted">
+                          Notificaciones de medicamento, citas y stock.
+                        </p>
+                      </div>
+                      {notificacionesSoportadas() &&
+                        (permisoNotif === "granted" ? (
+                          <span className="shrink-0 rounded-full bg-brand-accent/15 px-3 py-1 text-xs font-semibold text-brand-accent">
+                            Alarmas activas
+                          </span>
+                        ) : (
+                          <button
+                            onClick={activarNotificaciones}
+                            className="shrink-0 rounded-xl bg-brand-accent px-3 py-2 text-xs font-semibold text-brand-deep hover:bg-white"
+                          >
+                            Activar notificaciones
+                          </button>
+                        ))}
+                    </div>
 
                     <div className="mt-5 space-y-3">
                       {alertas.length === 0 ? (
@@ -577,9 +653,15 @@ export default function DashboardPage() {
                         alertas.map((alerta) => (
                           <div
                             key={alerta.id}
-                            className="rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-4 text-sm leading-6 text-brand-muted"
+                            className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-brand-deep/40 px-4 py-4 text-sm leading-6 text-brand-muted"
                           >
-                            {alerta.mensaje}
+                            <span>{alerta.mensaje}</span>
+                            <button
+                              onClick={() => marcarAlertaComoLeida(alerta.id)}
+                              className="shrink-0 rounded-xl border border-white/10 px-3 py-1.5 text-xs font-medium text-white hover:border-brand-accent hover:text-brand-accent"
+                            >
+                              Marcar leída
+                            </button>
                           </div>
                         ))
                       )}
