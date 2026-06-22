@@ -1,0 +1,211 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: '4'
+    objectset.rio.cattle.io/applied: >-
+      H4sIAAAAAAAA/7RTwW7bMAz9F56lxE6cxDWwQ7b01i5ZU3QohqCgZKbRKkuepKQoAv37IDdxgx52240mH9+jHukjYKseyHllDVSAbeuHhxwYvChTQwULarV9a8gEYNBQwBoDQnUENMYGDMoanz6t+E0yeAoDp+xAYgiaBsoOVSIpropsVtYlH423Y16I0ZSL0VRymddyNh7JoihqiAw0CtL/pNuh30EFZTkpZttSZKVEnJQTQoE5ZRMx3V6JspzQNMtFjbNEarAhqKAW8B77FmVKyL2qUyky8C3JpOqo1Uqihypn4EmTDNalQoNB7m766V6te9EW68Hek7uY7pz/aO0MHdS9ifykymsBMTII1LQaA3UiF+7q/6B1fqW0JqAy5DxUv46A7jkFwLm2r+S4RE88oNDEO7u+5LBhQObQoU9u3j6uf9w83S2X90+r+Xr9c3m3AAYH1PtUfbxeQ2SfwIv5/fzrfH19getXsGGgGnxOuebN/9FVCf3i+nF5Bgxa68L73H1+ZV2AajzOpn1PQnWsB6v3Dd3avTl1NSlcYUhXNDygG2olhp0mXJwK7/YQNx8U/vL1ZwCDNv05PpAJDx3sm0bVdCan4PsnvriJMca/AQAA//91wRwEcwMAAA
+    objectset.rio.cattle.io/id: 494078d8-23f3-4b26-b26c-c1dc732c444d
+  creationTimestamp: '2026-06-22T03:32:11Z'
+  generation: 4
+  labels:
+    objectset.rio.cattle.io/hash: 88547f8b08caa585eaba1e05b6f9b885e601bda7
+    workload.user.cattle.io/workloadselector: apps.deployment-cuidame-db
+  managedFields:
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:annotations:
+            f:objectset.rio.cattle.io/applied: {}
+            f:objectset.rio.cattle.io/id: {}
+          f:labels:
+            .: {}
+            f:objectset.rio.cattle.io/hash: {}
+            f:workload.user.cattle.io/workloadselector: {}
+        f:spec:
+          f:progressDeadlineSeconds: {}
+          f:replicas: {}
+          f:revisionHistoryLimit: {}
+          f:selector: {}
+          f:strategy:
+            f:rollingUpdate:
+              .: {}
+              f:maxSurge: {}
+              f:maxUnavailable: {}
+            f:type: {}
+          f:template:
+            f:metadata:
+              f:labels:
+                .: {}
+                f:workload.user.cattle.io/workloadselector: {}
+              f:namespace: {}
+            f:spec:
+              f:containers:
+                k:{"name":"container-0"}:
+                  .: {}
+                  f:args: {}
+                  f:env:
+                    .: {}
+                    k:{"name":"MYSQL_DATABASE"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"MYSQL_ROOT_PASSWORD"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                  f:image: {}
+                  f:imagePullPolicy: {}
+                  f:name: {}
+                  f:ports:
+                    .: {}
+                    k:{"containerPort":3306,"protocol":"TCP"}:
+                      .: {}
+                      f:containerPort: {}
+                      f:name: {}
+                      f:protocol: {}
+                  f:resources: {}
+                  f:securityContext:
+                    .: {}
+                    f:allowPrivilegeEscalation: {}
+                    f:privileged: {}
+                    f:readOnlyRootFilesystem: {}
+                    f:runAsNonRoot: {}
+                  f:terminationMessagePath: {}
+                  f:terminationMessagePolicy: {}
+                  f:volumeMounts:
+                    .: {}
+                    k:{"mountPath":"/var/lib/mysql"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+              f:dnsPolicy: {}
+              f:restartPolicy: {}
+              f:schedulerName: {}
+              f:securityContext: {}
+              f:terminationGracePeriodSeconds: {}
+              f:volumes:
+                .: {}
+                k:{"name":"db-data"}:
+                  .: {}
+                  f:name: {}
+                  f:persistentVolumeClaim:
+                    .: {}
+                    f:claimName: {}
+      manager: steve.exe
+      operation: Update
+      time: '2026-06-22T04:24:58Z'
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:deployment.kubernetes.io/revision: {}
+        f:status:
+          f:availableReplicas: {}
+          f:conditions:
+            .: {}
+            k:{"type":"Available"}:
+              .: {}
+              f:lastTransitionTime: {}
+              f:lastUpdateTime: {}
+              f:message: {}
+              f:reason: {}
+              f:status: {}
+              f:type: {}
+            k:{"type":"Progressing"}:
+              .: {}
+              f:lastTransitionTime: {}
+              f:lastUpdateTime: {}
+              f:message: {}
+              f:reason: {}
+              f:status: {}
+              f:type: {}
+          f:observedGeneration: {}
+          f:readyReplicas: {}
+          f:replicas: {}
+          f:terminatingReplicas: {}
+          f:updatedReplicas: {}
+      manager: k3s
+      operation: Update
+      subresource: status
+      time: '2026-06-22T04:25:13Z'
+  name: db
+  namespace: cuidame
+  resourceVersion: '8146'
+  uid: 5436c35c-45b0-4573-95f0-4f4fc25f2a82
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      workload.user.cattle.io/workloadselector: apps.deployment-cuidame-db
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        workload.user.cattle.io/workloadselector: apps.deployment-cuidame-db
+      namespace: cuidame
+    spec:
+      containers:
+        - args:
+            - '--lower-case-table-names=1'
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: 'YES'
+            - name: MYSQL_DATABASE
+              value: cuidame
+          image: mysql:8
+          imagePullPolicy: Always
+          name: container-0
+          ports:
+            - containerPort: 3306
+              name: port
+              protocol: TCP
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: db-data
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: db-data
+status:
+  availableReplicas: 1
+  conditions:
+    - lastTransitionTime: '2026-06-22T03:33:04Z'
+      lastUpdateTime: '2026-06-22T03:33:04Z'
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: 'True'
+      type: Available
+    - lastTransitionTime: '2026-06-22T03:32:11Z'
+      lastUpdateTime: '2026-06-22T04:25:08Z'
+      message: ReplicaSet "db-f9f784c49" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: 'True'
+      type: Progressing
+  observedGeneration: 4
+  readyReplicas: 1
+  replicas: 1
+  terminatingReplicas: 0
+  updatedReplicas: 1
